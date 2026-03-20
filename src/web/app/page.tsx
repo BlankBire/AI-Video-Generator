@@ -120,12 +120,14 @@ export default function Home() {
         }}>
           <div style={{
             width: 44, height: 44,
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--gradient-primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22,
-            boxShadow: 'var(--shadow-button)',
-          }}>🍽️</div>
+          }}>
+            <img 
+              src="/logo.png" 
+              alt="FoodieGen Logo" 
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+            />
+          </div>
           <h1 style={{
             fontFamily: "'Be Vietnam Pro', sans-serif",
             fontSize: 28, fontWeight: 500,
