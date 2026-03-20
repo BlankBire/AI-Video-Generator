@@ -3,15 +3,34 @@
 import { useState } from 'react'
 
 /* ─── DATA ─── */
-const FOOD_SUBJECTS = [
-  'Phở bò', 'Bánh mì', 'Bún chả', 'Cơm tấm',
-  'Bánh xèo', 'Trà sữa', 'Cà phê', 'Chè',
+
+const RANDOM_TOPICS = [
+  {
+    topic: 'Tô phở bò Nam Định nạm gầu, nước dùng trong vắt, khói bốc nghi ngút buổi sáng',
+    character: 'Chủ quán phở thân thiện, mặc tạp dề trắng, đang thái thịt bò điêu luyện',
+    script: 'Cảnh 1: Cận cảnh nồi nước dùng sôi sùng sục, khói mờ ảo.\nCảnh 2: Đôi bàn tay chủ quán thoắt xếp bánh phở vào tô.\nCảnh 3: Những lát thịt bò nạm tươi ngon được xếp đều lên trên.\nCảnh 4: Rưới nước dùng nóng hổi, tiếng "xèo xèo" nhẹ nhàng.\nCảnh 5: Khách hàng húp một thìa nước dùng, nét mặt mãn nguyện.'
+  },
+  {
+    topic: 'Ổ bánh mì Sài Gòn đặc biệt đầy ắp thịt nguội, bơ xanh và đồ chua giòn rụm',
+    character: 'Cô bán bánh mì vui tính, tay đeo bao tay nilon, thao tác cực nhanh',
+    script: 'Cảnh 1: Lưỡi dao rạch một đường dứt khoát lên ổ bánh mì nóng giòn.\nCảnh 2: Phết bơ và pate đều tăm tắp vào lòng bánh.\nCảnh 3: Xếp từng lát thịt nguội, giò chả xen kẽ đẹp mắt.\nCảnh 4: Thêm dưa chuột, đồ chua và một chút ớt tươi.\nCảnh 5: Gói bánh vào tờ giấy báo, đưa cho thực khách đang chờ.'
+  },
+  {
+    topic: 'Ly cà phê muối thơm nồng, lớp kem mặn sánh mịn quyện cùng vị đắng đậm đà',
+    character: 'Bạn barista trẻ trung, tập trung cao độ khi pha chế',
+    script: 'Cảnh 1: Cà phê phin từng giọt tí tách rơi xuống lớp sữa đặc.\nCảnh 2: Đánh bông lớp kem muối bằng máy cầm tay cho đến khi mịn mượt.\nCảnh 3: Rót nhẹ nhàng lớp kem trắng muốt lên bề mặt cà phê nâu đậm.\nCảnh 4: Rắc một chút bột cacao hoặc muối biển lên trên cùng.\nCảnh 5: Quay chậm cảnh khuấy nhẹ ly cà phê, tạo hiệu ứng vân mây đẹp mắt.'
+  },
+  {
+    topic: 'Mẹt bún đậu mắm tôm đầy đủ sứa, dồi sụn nướng béo ngậy và thịt chân giò luộc',
+    character: 'Người phục vụ nhanh nhẹn, bưng mẹt bún đậu khổng lồ ra bàn',
+    script: 'Cảnh 1: Cận cảnh những miếng đậu hũ đang chiên vàng ươm trong chảo dầu.\nCảnh 2: Cắt miếng đậu hũ thấy rõ độ giòn bên ngoài và mềm nóng bên trong.\nCảnh 3: Vắt quất vào bát mắm tôm, đánh sủi bọt trắng xóa.\nCảnh 4: Sắp xếp bún lá, rau thơm và các loại topping lên mẹt tre.\nCảnh 5: Thực khách chấm một miếng đậu vào bát mắm tôm và thưởng thức.'
+  }
 ]
 
 const VISUAL_STYLES = [
+  { id: 'cinematic', label: 'Cinematic'  },
   { id: 'golden',    label: 'Golden Hour' },
   { id: 'closeup',   label: 'Close-Up'   },
-  { id: 'cinematic', label: 'Cinematic'  },
   { id: 'dreamy',    label: 'Dreamy'     },
   { id: 'vibrant',   label: 'Vibrant'    },
   { id: 'minimal',   label: 'Minimal'    },
@@ -20,26 +39,68 @@ const VISUAL_STYLES = [
   { id: 'vintage',   label: 'Vintage'    },
 ]
 
-const TONES    = ['Cảm xúc', 'Bán hàng', 'Viral', 'Giáo dục', 'Review', 'Kể chuyện', 'Hài hước', 'Sang trọng', 'Kích thích']
+const TONES    = ['Kích thích', 'Sang trọng', 'Cảm xúc', 'Bán hàng', 'Viral', 'Giáo dục', 'Review', 'Kể chuyện', 'Hài hước']
 const EMOTIONS = ['Vui tươi', 'Sang trọng', 'Ấm cúng', 'Phấn khích', 'Bình yên', 'Mãnh liệt', 'Bí ẩn', 'Tươi mới']
 const V_GENDER = ['Nam', 'Nữ', 'AI']
 
 export default function Home() {
-  const [resolution,     setResolution]     = useState<'720p'|'1080p'>('1080p')
+  const [resolution,     setResolution]     = useState<'720p'|'1080p'>('720p')
   const [aspectRatio,    setAspectRatio]    = useState<'9:16'|'16:9'|'1:1'>('9:16')
-  const [duration,       setDuration]       = useState<'15s'|'30s'|'60s'>('30s')
+  const [duration,       setDuration]       = useState<'15s'|'30s'|'60s'>('15s')
   const [activeStyle,    setActiveStyle]    = useState('cinematic')
-  const [voiceGender,    setVoiceGender]    = useState('Nữ')
+  const [voiceGender,    setVoiceGender]    = useState('Nam')
   const [activeTone,     setActiveTone]     = useState('Kích thích')
-  const [voiceSpeed,     setVoiceSpeed]     = useState(55)
-  const [motionIntensity,setMotionIntensity]= useState(75)
+  const [voiceSpeed,     setVoiceSpeed]     = useState(50)
+  const [motionIntensity,setMotionIntensity]= useState(50)
   const [transitions,    setTransitions]    = useState(true)
-  const [bgMusic,        setBgMusic]        = useState(true)
+  const [bgMusic,        setBgMusic]        = useState(false)
   const [autoEnhance,    setAutoEnhance]    = useState(false)
   const [charConsistency,setCharConsistency]= useState(true)
   const [foodTopic,      setFoodTopic]      = useState('')
   const [mainCharacter,  setMainCharacter]  = useState('')
   const [script,         setScript]         = useState('')
+
+  const handleFillSamples = () => {
+    const randomIdx = Math.floor(Math.random() * RANDOM_TOPICS.length)
+    const item = RANDOM_TOPICS[randomIdx]
+    setFoodTopic(item.topic)
+    setMainCharacter(item.character)
+    setScript(item.script)
+  }
+
+  /* Helper for dropdown with arrow */
+  const CustomSelect = ({ children, style, ...props }: any) => (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <select 
+        className="form-select" 
+        style={{ 
+          ...style, 
+          appearance: 'none', 
+          paddingRight: '32px',
+          height: 42,
+          fontSize: 13,
+          background: 'var(--bg-surface)'
+        }} 
+        {...props}
+      >
+        {children}
+      </select>
+      <div style={{ 
+        position: 'absolute', 
+        right: 12, 
+        top: '50%', 
+        transform: 'translateY(-50%)', 
+        pointerEvents: 'none',
+        color: 'var(--text-muted)',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </div>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', padding: '0 var(--space-6) var(--space-8)' }}>
@@ -105,18 +166,22 @@ export default function Home() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Chủ đề món ăn *</label>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
+                <label className="form-label" style={{ marginBottom:0 }}>Chủ đề món ăn</label>
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding:'4px 10px', fontSize:11, fontWeight:600, borderColor:'var(--amber-300)', color:'var(--amber-600)' }}
+                  onClick={handleFillSamples}
+                >
+                  Gợi ý ý tưởng
+                </button>
+              </div>
               <input
                 className="form-input"
                 placeholder="VD: Tô phở bò nóng hổi, khói bốc nghi ngút..."
                 value={foodTopic}
                 onChange={e => setFoodTopic(e.target.value)}
               />
-              <div className="chip-group" style={{ marginTop: 'var(--space-3)' }}>
-                {FOOD_SUBJECTS.map(f => (
-                  <button key={f} className={`chip ${foodTopic===f?'active':''}`} onClick={() => setFoodTopic(f)}>{f}</button>
-                ))}
-              </div>
             </div>
 
             <div className="form-group">
@@ -129,18 +194,39 @@ export default function Home() {
               />
             </div>
 
-            <div className="form-group">
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
-                <label className="form-label" style={{ marginBottom:0 }}>Kịch bản</label>
-                <button className="btn-primary" style={{ padding:'6px 14px', fontSize:12 }}>AI tạo kịch bản</button>
+            <div style={{ 
+              background: 'rgba(245, 158, 11, 0.03)', 
+              padding: 'var(--space-4)', 
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-default)',
+              marginBottom: 'var(--space-5)'
+            }}>
+              <div className="form-group" style={{ marginBottom: 'var(--space-3)' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
+                  <label className="form-label" style={{ marginBottom:0 }}>Kịch bản chi tiết</label>
+                  <button className="btn-primary" style={{ padding:'6px 14px', fontSize:12 }}>AI tạo kịch bản</button>
+                </div>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Mô tả từng cảnh quay, hoặc nhấn AI để tự tạo..."
+                  style={{ minHeight: 90 }}
+                  value={script}
+                  onChange={e => setScript(e.target.value)}
+                />
               </div>
-              <textarea
-                className="form-textarea"
-                placeholder="Mô tả từng cảnh quay, hoặc nhấn AI để tự tạo..."
-                style={{ minHeight: 90 }}
-                value={script}
-                onChange={e => setScript(e.target.value)}
-              />
+
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label" style={{ marginBottom:6, fontSize:11 }}>Tone nội dung</label>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'var(--space-2)' }}>
+                    {TONES.map(t => (
+                      <button key={t} className={`segment-btn ${activeTone===t?'active':''}`} style={{ fontSize:10, padding:'3px 8px' }} onClick={()=>setActiveTone(t)}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="form-row">
@@ -230,155 +316,127 @@ export default function Home() {
             </div>
           </div>
 
-          {/* SECTION 3 — Tối ưu video AI (2×2 grid) */}
-          <div className="section-card" style={{ margin: 0 }}>
-            <div className="section-header">
-              <div>
-                <div className="section-title">Tối ưu video AI</div>
-                <div className="section-subtitle">Tinh chỉnh để video đẹp và hiệu quả nhất</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-6)', alignItems: 'stretch' }}>
+              
+              {/* === COL 1: THIẾT LẬP HÌNH ẢNH (VISUALS) === */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--amber-600)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ width:4, height:16, background:'var(--amber-600)', borderRadius:2 }} />
+                  Hình ảnh & Chuyển động
+                </div>
+
+                {/* Unified Sub-card: Toàn bộ Hình ảnh */}
+                <div style={{
+                  padding:'var(--space-4)',
+                  background:'var(--bg-card)',
+                  border:'1px solid var(--border-default)',
+                  borderRadius:'var(--radius-md)',
+                  boxShadow: 'var(--shadow-sm)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-5)'
+                }}>
+                  {/* Cảm xúc */}
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)', marginBottom:'var(--space-2)' }}>Cảm xúc</label>
+                    <CustomSelect>
+                      {EMOTIONS.map(e => <option key={e}>{e}</option>)}
+                    </CustomSelect>
+                  </div>
+
+                  {/* Phong cách */}
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)', marginBottom:'var(--space-2)' }}>Phong cách</label>
+                    <CustomSelect value={activeStyle} onChange={(e:any)=>setActiveStyle(e.target.value)}>
+                      {VISUAL_STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </CustomSelect>
+                  </div>
+
+                  {/* Cường độ chuyển động */}
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)' }}>Cường độ chuyển động</label>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-muted)', marginBottom:10 }}>
+                      <span>Nhẹ (x0.5)</span><span>Chuẩn (x1.0)</span><span>Mạnh (x1.5)</span>
+                    </div>
+                    <input type="range" className="range-slider" min={0} max={100} value={motionIntensity} onChange={e=>setMotionIntensity(Number(e.target.value))} />
+                  </div>
+
+                  {/* Bottom Controls: Chuyển cảnh & Nhất quán */}
+                  <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: 'var(--space-4)', marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="toggle-wrap" style={{ display:'flex', alignItems: 'center' }}>
+                      <div className="toggle">
+                        <input type="checkbox" checked={transitions} onChange={e=>setTransitions(e.target.checked)} />
+                        <div className="toggle-slider" />
+                      </div>
+                      <span style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500 }}>Chuyển cảnh</span>
+                    </label>
+
+                    <label className="toggle-wrap" style={{ display:'flex', alignItems: 'center', margin: 0 }}>
+                      <div className="toggle">
+                        <input type="checkbox" checked={charConsistency} onChange={e=>setCharConsistency(e.target.checked)} />
+                        <div className="toggle-slider" />
+                      </div>
+                      <span style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500 }}>Nhất quán chủ thể</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* === COL 2: THIẾT LẬP ÂM THANH (AUDIO) === */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-5)' }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'var(--amber-600)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ width:4, height:16, background:'var(--amber-600)', borderRadius:2 }} />
+                  Âm thanh & Thuyết minh
+                </div>
+
+                {/* Sub-card: Giọng đọc */}
+                <div style={{
+                  padding:'var(--space-4)',
+                  background:'var(--bg-card)',
+                  border:'1px solid var(--border-default)',
+                  borderRadius:'var(--radius-md)',
+                  boxShadow: 'var(--shadow-sm)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-5)'
+                }}>
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)', marginBottom:'var(--space-2)' }}>Kiểu giọng</label>
+                    <CustomSelect value={voiceGender} onChange={(e:any)=>setVoiceGender(e.target.value)}>
+                      {V_GENDER.map(g => <option key={g} value={g}>{g}</option>)}
+                    </CustomSelect>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)', marginBottom: 'var(--space-2)' }}>Ngôn ngữ</label>
+                    <CustomSelect>
+                      <option>Tiếng Việt</option>
+                      <option>Tiếng Anh</option>
+                    </CustomSelect>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ fontSize:11, color:'var(--text-muted)' }}>Tốc độ đọc</label>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-muted)', marginBottom:10 }}>
+                      <span>Chậm (0.5x)</span><span>Vừa (1.0x)</span><span>Nhanh (1.5x)</span>
+                    </div>
+                    <input type="range" className="range-slider" min={0} max={100} value={voiceSpeed} onChange={e=>setVoiceSpeed(Number(e.target.value))} />
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: 'var(--space-4)', marginTop: 'auto' }}>
+                    <label className="toggle-wrap" style={{ display:'flex', alignItems: 'center' }}>
+                      <div className="toggle">
+                        <input type="checkbox" checked={bgMusic} onChange={e=>setBgMusic(e.target.checked)} />
+                        <div className="toggle-slider" />
+                      </div>
+                      <span style={{ fontSize:12, color:'var(--text-primary)', fontWeight:500 }}>Nhạc nền</span>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'var(--space-4)' }}>
-
-              {/* Sub-card: Đối tượng */}
-              <div style={{
-                padding:'var(--space-4)',
-                background:'var(--bg-surface)',
-                border:'1px solid var(--border-default)',
-                borderRadius:'var(--radius-md)',
-              }}>
-                <div style={{ fontSize:12, fontWeight:500, color:'var(--text-secondary)', marginBottom:'var(--space-4)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  Đối tượng
-                </div>
-                <label className="toggle-wrap" style={{ marginBottom:'var(--space-3)', display:'flex' }}>
-                  <div className="toggle">
-                    <input type="checkbox" checked={charConsistency} onChange={e=>setCharConsistency(e.target.checked)} />
-                    <div className="toggle-slider" />
-                  </div>
-                  <span style={{ fontSize:12, color:'var(--text-secondary)' }}>Nhất quán chủ thể</span>
-                </label>
-
-                <div className="form-group" style={{ marginBottom:0 }}>
-                  <label className="form-label" style={{ marginBottom:2 }}>Cảm xúc</label>
-                  <select className="form-select" style={{ fontSize:12 }}>
-                    {EMOTIONS.map(e => <option key={e}>{e}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Sub-card: Kịch bản */}
-              <div style={{
-                padding:'var(--space-4)',
-                background:'var(--bg-surface)',
-                border:'1px solid var(--border-default)',
-                borderRadius:'var(--radius-md)',
-              }}>
-                <div style={{ fontSize:12, fontWeight:500, color:'var(--text-secondary)', marginBottom:'var(--space-4)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  Kịch bản
-                </div>
-                <label className="toggle-wrap" style={{ marginBottom:'var(--space-4)', display:'flex' }}>
-                  <div className="toggle">
-                    <input type="checkbox" checked={autoEnhance} onChange={e=>setAutoEnhance(e.target.checked)} />
-                    <div className="toggle-slider" />
-                  </div>
-                  <span style={{ fontSize:12, color:'var(--text-secondary)' }}>AI viết lại kịch bản hay hơn</span>
-                </label>
-                <div className="form-group" style={{ marginBottom:0 }}>
-                  <label className="form-label" style={{ marginBottom:2 }}>Tone nội dung</label>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'var(--space-2)' }}>
-                    {TONES.map(t => (
-                      <button key={t} className={`segment-btn ${activeTone===t?'active':''}`} style={{ fontSize:11, padding:'4px 10px' }} onClick={()=>setActiveTone(t)}>
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Sub-card: Giọng đọc */}
-              <div style={{
-                padding:'var(--space-4)',
-                background:'var(--bg-surface)',
-                border:'1px solid var(--border-default)',
-                borderRadius:'var(--radius-md)',
-              }}>
-                <div style={{ fontSize:12, fontWeight:500, color:'var(--text-secondary)', marginBottom:'var(--space-4)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  Giọng đọc
-                </div>
-                <div className="form-group" style={{ marginBottom:'var(--space-3)' }}>
-                  <label className="form-label" style={{ marginBottom:2 }}>Kiểu giọng</label>
-                  <div style={{ display:'flex', gap:'var(--space-2)' }}>
-                    {V_GENDER.map(g => (
-                      <button key={g} className={`segment-btn ${voiceGender===g?'active':''}`} style={{ fontSize:11, padding:'4px 10px' }} onClick={()=>setVoiceGender(g)}>{g}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-group" style={{ marginBottom:'var(--space-3)' }}>
-                  <label className="form-label">Ngôn ngữ</label>
-                  <select className="form-select" style={{ fontSize:12 }}>
-                    <option>Tiếng Việt</option>
-                    <option>Tiếng Anh</option>
-                  </select>
-                </div>
-                <div className="form-group" style={{ marginBottom:0 }}>
-                  <label className="form-label" style={{ marginBottom:2 }}>Tốc độ đọc</label>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-muted)', marginBottom:4 }}>
-                    <span>Chậm</span><span>Nhanh</span>
-                  </div>
-                  <input type="range" className="range-slider" min={0} max={100} value={voiceSpeed} onChange={e=>setVoiceSpeed(Number(e.target.value))} />
-                </div>
-              </div>
-
-              {/* Sub-card: Hiệu ứng */}
-              <div style={{
-                padding:'var(--space-4)',
-                background:'var(--bg-surface)',
-                border:'1px solid var(--border-default)',
-                borderRadius:'var(--radius-md)',
-              }}>
-                <div style={{ fontSize:12, fontWeight:500, color:'var(--text-secondary)', marginBottom:'var(--space-4)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  Hiệu ứng hình ảnh
-                </div>
-                <div className="form-group" style={{ marginBottom:'var(--space-3)' }}>
-                  <label className="form-label" style={{ marginBottom:2 }}>Phong cách</label>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'var(--space-2)' }}>
-                    {VISUAL_STYLES.map(s => (
-                      <button key={s.id} className={`segment-btn ${activeStyle===s.id?'active':''}`} style={{ fontSize:11, padding:'4px 10px' }} onClick={()=>setActiveStyle(s.id)}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="form-group" style={{ marginBottom:'var(--space-3)' }}>
-                  <label className="form-label">Cường độ chuyển động</label>
-                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--text-muted)', marginBottom:4 }}>
-                    <span>Nhẹ</span><span>Mạnh</span>
-                  </div>
-                  <input type="range" className="range-slider" min={0} max={100} value={motionIntensity} onChange={e=>setMotionIntensity(Number(e.target.value))} />
-                </div>
-                <label className="toggle-wrap" style={{ marginBottom:'var(--space-3)', display:'flex' }}>
-                  <div className="toggle">
-                    <input type="checkbox" checked={transitions} onChange={e=>setTransitions(e.target.checked)} />
-                    <div className="toggle-slider" />
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column' }}>
-                    <span style={{ fontSize:12, color:'var(--text-secondary)' }}>Chuyển cảnh</span>
-                  </div>
-                </label>
-                <label className="toggle-wrap" style={{ display:'flex' }}>
-                  <div className="toggle">
-                    <input type="checkbox" checked={bgMusic} onChange={e=>setBgMusic(e.target.checked)} />
-                    <div className="toggle-slider" />
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column' }}>
-                    <span style={{ fontSize:12, color:'var(--text-secondary)' }}>Nhạc nền</span>
-                  </div>
-                </label>
-              </div>
-
-            </div>
-          </div>
 
           {/* Bottom action bar */}
           <div style={{ display:'flex', gap:'var(--space-3)', justifyContent:'flex-end', paddingBottom:'var(--space-8)' }}>
