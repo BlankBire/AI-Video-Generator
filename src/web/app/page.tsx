@@ -157,161 +157,179 @@ export default function Home() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
 
           {/* SECTION 1 — Nội dung */}
-          <div className="section-card" style={{ margin: 0 }}>
-            <div className="section-header">
-              <div>
-                <div className="section-title">Nội dung</div>
-                <div className="section-subtitle">Chủ đề món ăn và kịch bản video</div>
-              </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'var(--amber-600)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ width:4, height:16, background:'var(--amber-600)', borderRadius:2 }} />
+              Nội dung
             </div>
-
-            <div className="form-group">
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
-                <label className="form-label" style={{ marginBottom:0 }}>Chủ đề món ăn</label>
-                <button 
-                  className="btn-secondary" 
-                  style={{ padding:'4px 10px', fontSize:11, fontWeight:600, borderColor:'var(--amber-300)', color:'var(--amber-600)' }}
-                  onClick={handleFillSamples}
-                >
-                  Gợi ý ý tưởng
-                </button>
-              </div>
-              <input
-                className="form-input"
-                placeholder="VD: Tô phở bò nóng hổi, khói bốc nghi ngút..."
-                value={foodTopic}
-                onChange={e => setFoodTopic(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Mô tả nhân vật chính</label>
-              <input
-                className="form-input"
-                placeholder="VD: Chú chó Shiba mặc áo đầu bếp..."
-                value={mainCharacter}
-                onChange={e => setMainCharacter(e.target.value)}
-              />
-            </div>
-
-            <div style={{ 
-              background: 'rgba(245, 158, 11, 0.03)', 
-              padding: 'var(--space-4)', 
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-default)',
-              marginBottom: 'var(--space-5)'
-            }}>
-              <div className="form-group" style={{ marginBottom: 'var(--space-3)' }}>
+            
+            <div className="section-card" style={{ margin: 0 }}>
+              <div className="form-group">
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
-                  <label className="form-label" style={{ marginBottom:0 }}>Kịch bản chi tiết</label>
-                  <button className="btn-primary" style={{ padding:'6px 14px', fontSize:12 }}>AI tạo kịch bản</button>
+                  <label className="form-label" style={{ marginBottom:0 }}>Chủ đề món ăn</label>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ padding:'4px 10px', fontSize:11, fontWeight:600, borderColor:'var(--amber-300)', color:'var(--amber-600)' }}
+                    onClick={handleFillSamples}
+                  >
+                    Gợi ý ý tưởng
+                  </button>
                 </div>
-                <textarea
-                  className="form-textarea"
-                  placeholder="Mô tả từng cảnh quay, hoặc nhấn AI để tự tạo..."
-                  style={{ minHeight: 90 }}
-                  value={script}
-                  onChange={e => setScript(e.target.value)}
+                <input
+                  className="form-input"
+                  placeholder="VD: Tô phở bò nóng hổi, khói bốc nghi ngút..."
+                  value={foodTopic}
+                  onChange={e => setFoodTopic(e.target.value)}
                 />
               </div>
 
-              <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
-                <div className="form-group" style={{ marginBottom:0 }}>
-                  <label className="form-label" style={{ marginBottom:6, fontSize:11 }}>Tone nội dung</label>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'var(--space-2)' }}>
-                    {TONES.map(t => (
-                      <button key={t} className={`segment-btn ${activeTone===t?'active':''}`} style={{ fontSize:10, padding:'3px 8px' }} onClick={()=>setActiveTone(t)}>
-                        {t}
-                      </button>
-                    ))}
+              <div className="form-group">
+                <label className="form-label">Mô tả nhân vật chính</label>
+                <input
+                  className="form-input"
+                  placeholder="VD: Chú chó Shiba mặc áo đầu bếp..."
+                  value={mainCharacter}
+                  onChange={e => setMainCharacter(e.target.value)}
+                />
+              </div>
+
+              <div style={{ 
+                background: 'rgba(245, 158, 11, 0.03)', 
+                padding: 'var(--space-4)', 
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-default)',
+                marginBottom: 'var(--space-5)'
+              }}>
+                <div className="form-group" style={{ marginBottom: 'var(--space-3)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 'var(--space-2)' }}>
+                    <label className="form-label" style={{ marginBottom:0 }}>Kịch bản chi tiết</label>
+                    <button className="btn-primary" style={{ padding:'6px 14px', fontSize:12 }}>AI tạo kịch bản</button>
+                  </div>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="Mô tả từng cảnh quay, hoặc nhấn AI để tự tạo..."
+                    style={{ minHeight: 90 }}
+                    value={script}
+                    onChange={e => setScript(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-3)' }}>
+                  <div className="form-group" style={{ marginBottom:0 }}>
+                    <label className="form-label" style={{ marginBottom:10, fontSize:11 }}>Tone nội dung</label>
+                    <div style={{ 
+                      display:'flex', 
+                      gap:4,
+                      width: '100%',
+                      flexWrap: 'nowrap'
+                    }}>
+                      {TONES.map(t => (
+                        <button 
+                          key={t} 
+                          className={`segment-btn ${activeTone===t?'active':''}`} 
+                          style={{ 
+                            fontSize:9, 
+                            padding:'6px 0',
+                            flex: 1,
+                            justifyContent: 'center',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0,
+                            height: 28
+                          }} 
+                          onClick={()=>setActiveTone(t)}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="form-row">
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Thể loại</label>
-                <select className="form-select">
-                  <option>Giới thiệu món ăn</option>
-                  <option>Review nhà hàng</option>
-                  <option>Công thức nấu ăn</option>
-                  <option>Khuyến mãi</option>
-                  <option>Storytelling</option>
-                </select>
-              </div>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Số cảnh</label>
-                <select className="form-select">
-                  <option>3 cảnh</option>
-                  <option>5 cảnh</option>
-                  <option>7 cảnh</option>
-                  <option>10 cảnh</option>
-                </select>
+              <div className="form-row">
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Thể loại</label>
+                  <select className="form-select">
+                    <option>Giới thiệu món ăn</option>
+                    <option>Review nhà hàng</option>
+                    <option>Công thức nấu ăn</option>
+                    <option>Khuyến mãi</option>
+                    <option>Storytelling</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Số cảnh</label>
+                  <select className="form-select">
+                    <option>3 cảnh</option>
+                    <option>5 cảnh</option>
+                    <option>7 cảnh</option>
+                    <option>10 cảnh</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
           {/* SECTION 2 — Cấu hình video */}
-          <div className="section-card" style={{ margin: 0 }}>
-            <div className="section-header">
-              <div>
-                <div className="section-title">Cấu hình video</div>
-                <div className="section-subtitle">Chất lượng, tỷ lệ và thời lượng</div>
-              </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'var(--amber-600)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ width:4, height:16, background:'var(--amber-600)', borderRadius:2 }} />
+              Cấu hình video
             </div>
 
-            {/* Resolution */}
-            <div className="form-group">
-              <label className="form-label">Độ phân giải</label>
-              <div className="resolution-grid">
-                <div className={`resolution-card ${resolution==='720p'?'active':''}`} onClick={()=>setResolution('720p')}>
-                  <span className="resolution-badge">720p</span>
-                </div>
-                <div className={`resolution-card ${resolution==='1080p'?'active':''}`} onClick={()=>setResolution('1080p')}>
-                  <span className="resolution-badge">1080p</span>
+            <div className="section-card" style={{ margin: 0 }}>
+              {/* Resolution */}
+              <div className="form-group">
+                <label className="form-label">Độ phân giải</label>
+                <div className="resolution-grid">
+                  <div className={`resolution-card ${resolution==='720p'?'active':''}`} onClick={()=>setResolution('720p')}>
+                    <span className="resolution-badge">720p</span>
+                  </div>
+                  <div className={`resolution-card ${resolution==='1080p'?'active':''}`} onClick={()=>setResolution('1080p')}>
+                    <span className="resolution-badge">1080p</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* AI Model */}
-            <div className="form-group">
-              <label className="form-label">AI Model</label>
-              <div className="ai-model-badge">
-                <div className="ai-model-pulse" />
-                <div>
-                  <div className="ai-model-name">Veo 3.1 Fast</div>
-                  <div className="ai-model-desc">Google DeepMind · Ultra-quality food video</div>
+              {/* AI Model */}
+              <div className="form-group">
+                <label className="form-label">AI Model</label>
+                <div className="ai-model-badge">
+                  <div className="ai-model-pulse" />
+                  <div>
+                    <div className="ai-model-name">Veo 3.1 Fast</div>
+                    <div className="ai-model-desc">Google DeepMind · Ultra-quality food video</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="form-row">
-              {/* Aspect ratio */}
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Tỷ lệ khung hình</label>
-                <select
-                  className="form-select"
-                  value={aspectRatio}
-                  onChange={e => setAspectRatio(e.target.value as '9:16'|'16:9'|'1:1')}
-                >
-                  <option value="9:16">9:16 - TikTok / Reels</option>
-                  <option value="16:9">16:9 - YouTube</option>
-                  <option value="1:1">1:1 - Instagram</option>
-                </select>
-              </div>
-              {/* Duration */}
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label className="form-label">Thời lượng</label>
-                <select
-                  className="form-select"
-                  value={duration}
-                  onChange={e => setDuration(e.target.value as '15s'|'30s'|'60s')}
-                >
-                  <option value="15s">15 giây</option>
-                  <option value="30s">30 giây</option>
-                  <option value="60s">60 giây</option>
-                </select>
+              <div className="form-row">
+                {/* Aspect ratio */}
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Tỷ lệ khung hình</label>
+                  <select
+                    className="form-select"
+                    value={aspectRatio}
+                    onChange={e => setAspectRatio(e.target.value as '9:16'|'16:9'|'1:1')}
+                  >
+                    <option value="9:16">9:16 - TikTok / Reels</option>
+                    <option value="16:9">16:9 - YouTube</option>
+                    <option value="1:1">1:1 - Instagram</option>
+                  </select>
+                </div>
+                {/* Duration */}
+                <div className="form-group" style={{ marginBottom:0 }}>
+                  <label className="form-label">Thời lượng</label>
+                  <select
+                    className="form-select"
+                    value={duration}
+                    onChange={e => setDuration(e.target.value as '15s'|'30s'|'60s')}
+                  >
+                    <option value="15s">15 giây</option>
+                    <option value="30s">30 giây</option>
+                    <option value="60s">60 giây</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
