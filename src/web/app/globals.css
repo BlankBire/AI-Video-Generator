@@ -895,10 +895,24 @@ input, textarea, select {
 }
 
 .section-title {
-  font-family: 'Be Vietnam Pro', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 14px;
+  font-weight: 700;
+  color: #8b6d4d;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-4);
+}
+
+.section-title-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+  transform: rotate(45deg);
+  display: inline-block;
 }
 
 .section-subtitle {
@@ -1001,6 +1015,21 @@ input, textarea, select {
   box-shadow: var(--shadow-md);
 }
 
+.preview-screen {
+  width: 100%;
+  aspect-ratio: 9/16;
+  background: #fffcf5;
+  border: 1px solid var(--amber-100);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(180, 130, 80, 0.05);
+}
+
 .preview-screen::before {
   content: '';
   position: absolute;
@@ -1010,32 +1039,91 @@ input, textarea, select {
     radial-gradient(ellipse at 50% 100%, rgba(234,88,12,0.04) 0%, transparent 50%);
 }
 
+.preview-badge-top {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c08d4a;
+  z-index: 10;
+}
+
+.preview-badge-bottom {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  padding: 4px 10px;
+  background: rgba(180, 130, 80, 0.08);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #9c7f6a;
+  font-weight: 500;
+  z-index: 10;
+}
+
+.preview-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .preview-play-btn {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: rgba(245, 158, 11, 0.15);
-  border: 2px solid rgba(245, 158, 11, 0.4);
+  background: #fff4e0;
+  border: 4px solid #ffedcc;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--amber-400);
+  color: #f59e0b;
   cursor: pointer;
   transition: all var(--duration-fast);
   position: relative;
   z-index: 1;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
 }
 
 .preview-play-btn:hover {
-  background: rgba(245, 158, 11, 0.25);
-  transform: scale(1.1);
+  background: #ffedcc;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.15);
 }
 
 .preview-empty-text {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 14px;
+  color: #9c7f6a;
+  font-weight: 500;
   position: relative;
   z-index: 1;
+}
+
+.main-actions-container {
+  margin-top: var(--space-6);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.btn-draft {
+  border: 1px solid #eee !important;
+  background: #f9f9f9 !important;
+  transition: all var(--duration-fast) !important;
+}
+
+.btn-draft:hover {
+  background: #ffffff !important;
+  border-color: var(--amber-300) !important;
+  color: var(--amber-600) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(180, 130, 80, 0.05);
 }
 
 .scene-timeline {
@@ -1632,6 +1720,20 @@ input, textarea, select {
   .btn-generate {
     padding: 16px !important;
     font-size: 15px !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
   }
 }
 
