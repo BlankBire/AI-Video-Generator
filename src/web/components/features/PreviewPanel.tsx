@@ -2,6 +2,7 @@ import React from 'react';
 import { VISUAL_STYLES } from '../../constants';
 
 interface PreviewPanelProps {
+  videoUrl?: string;
   config: {
     resolution: string;
     aspectRatio: string;
@@ -12,7 +13,7 @@ interface PreviewPanelProps {
   };
 }
 
-export const PreviewPanel = ({ config }: PreviewPanelProps) => {
+export const PreviewPanel = ({ videoUrl, config }: PreviewPanelProps) => {
   // Find the label for the active style
   const styleLabel = VISUAL_STYLES.find(s => s.id === config.activeStyle)?.label || config.activeStyle;
 
@@ -24,14 +25,23 @@ export const PreviewPanel = ({ config }: PreviewPanelProps) => {
         <div className="preview-screen">
           <div className="preview-badge-top">{config.resolution === '1080p' ? '1080p' : '720p'}</div>
           
-          <div className="preview-placeholder">
-            <div className="preview-play-btn">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+          {videoUrl ? (
+            <video 
+              src={videoUrl} 
+              controls 
+              autoPlay 
+              style={{ width: '100%', height: '100%', borderRadius: 'var(--radius-lg)', objectFit: 'cover' }}
+            />
+          ) : (
+            <div className="preview-placeholder">
+              <div className="preview-play-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+              <p className="preview-empty-text">Chưa có preview</p>
             </div>
-            <p className="preview-empty-text">Chưa có preview</p>
-          </div>
+          )}
           
           <div className="preview-badge-bottom">
             {config.aspectRatio} · {config.duration}

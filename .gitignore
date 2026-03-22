@@ -35,3 +35,6 @@ Thumbs.db
 
 # Build outputs
 build/
+
+# Service account
+foodiegen-service-account.json

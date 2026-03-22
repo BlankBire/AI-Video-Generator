@@ -1,6 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
+/** Convert Google file URL to proxy URL (adds API key server-side) */
+function toProxyUrl(raw: string): string {
+  if (!raw?.startsWith('https://generativelanguage.googleapis.com/')) return raw
+  const base64 = btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+  return `${API_BASE}/api/video/proxy?u=${encodeURIComponent(base64)}`
+}
 import { RANDOM_TOPICS, TONES } from '../constants'
 import { ResolutionType, AspectRatioType, DurationType } from '../types'
 
@@ -33,6 +42,11 @@ export default function Home() {
   const [foodTopic,      setFoodTopic]      = useState('')
   const [mainCharacter,  setMainCharacter]  = useState('')
   const [script,         setScript]         = useState('')
+  const [videoUrl,       setVideoUrl]       = useState('')
+
+  // State: UI
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState('')
 
   const handleFillSamples = () => {
     const randomIdx = Math.floor(Math.random() * RANDOM_TOPICS.length)
@@ -40,6 +54,68 @@ export default function Home() {
     setFoodTopic(item.topic)
     setMainCharacter(item.character)
     setScript(item.script)
+  }
+
+  const handleGenerate = async () => {
+    try {
+      setLoading(true)
+      setStatus('Khởi tạo dự án...')
+
+      // 0. Create Project (Mock/Simple)
+      // In real app, we might check if a project exists or create a new one
+      // For now, let's assume we have a simple internal user ID
+      const userId = '123e4567-e89b-12d3-a456-426614174000' // Mock UUID
+
+      setStatus('Đang phác thảo kịch bản...')
+
+      // 1. Generate Content (Script)
+      const resContent = await fetch('http://localhost:3001/api/generate/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          topic: foodTopic, 
+          tone: activeTone, 
+          projectId: userId 
+        }),
+      })
+      const dataContent = await resContent.json()
+      if (dataContent.error) throw new Error(dataContent.error)
+
+      setScript(JSON.stringify(dataContent.scenes, null, 2))
+      setStatus('Đang gửi lệnh tạo video tới Veo3...')
+
+      // 2. Generate Video
+      const resVideo = await fetch('http://localhost:3001/api/generate/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          scriptId: dataContent.scriptId,
+          generationId: undefined,
+          config: {
+            resolution,
+            aspectRatio,
+            duration,
+            style: activeStyle,
+            motionIntensity,
+          }
+        }),
+      })
+      const dataVideo = await resVideo.json()
+      if (dataVideo.error) throw new Error(dataVideo.error)
+
+      // Get the first clip URL as preview (use proxy for Google URLs - they need API key)
+      if (dataVideo.results && dataVideo.results.length > 0) {
+        const raw = dataVideo.results[0].videoClipUrl
+        setVideoUrl(raw ? toProxyUrl(raw) : '')
+      }
+
+      setStatus(dataVideo.partial ? (dataVideo.message || 'Đã tạo một phần.') : 'Hoàn tất! Video đã sẵn sàng.')
+    } catch (err: any) {
+      console.error(err)
+      setStatus('Lỗi: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -78,11 +154,17 @@ export default function Home() {
 
           {/* Main Action Buttons — Compact & Clean */}
           <div className="main-actions-container">
+            {status && <p style={{ marginRight: 'auto', color: '#6366f1', fontSize: '0.9rem' }}>{status}</p>}
             <button className="btn-secondary btn-draft" style={{ padding: '12px 24px', minWidth: 120 }}>
               Lưu nháp
             </button>
-            <button className="btn-generate" style={{ width: 'auto', padding: '12px 32px', minWidth: 180 }}>
-              <span>Tạo video</span>
+            <button 
+              className="btn-generate" 
+              onClick={handleGenerate}
+              disabled={loading}
+              style={{ width: 'auto', padding: '12px 32px', minWidth: 180, opacity: loading ? 0.7 : 1 }}
+            >
+              <span>{loading ? 'Đang tạo...' : 'Tạo video'}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
               </svg>
@@ -92,6 +174,7 @@ export default function Home() {
 
         {/* RIGHT — Preview & Summary */}
         <PreviewPanel 
+          videoUrl={videoUrl}
           config={{
             resolution,
             aspectRatio,
@@ -99,7 +182,7 @@ export default function Home() {
             voiceGender,
             activeStyle,
             activeTone
-          }}
+          }} 
         />
       </main>
     </div>
