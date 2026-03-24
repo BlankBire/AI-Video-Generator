@@ -4,22 +4,22 @@ export const RANDOM_TOPICS = [
   {
     topic: 'Tô phở bò Nam Định nạm gầu, nước dùng trong vắt, khói bốc nghi ngút buổi sáng',
     character: 'Chủ quán phở thân thiện, mặc tạp dề trắng, đang thái thịt bò điêu luyện',
-    script: 'Cảnh 1: Cận cảnh nồi nước dùng sôi sùng sục, khói mờ ảo.\nCảnh 2: Khách hàng húp một thìa nước dùng nóng hổi, nét mặt mãn nguyện.'
+    script: 'Cảnh 1: Cận cảnh đôi bàn tay chủ quán mặc tạp dề trắng thái từng lát thịt bò chín điêu luyện, khói từ nồi nước dùng nghi ngút bên cạnh.\nCảnh 2: Chủ quán nở nụ cười thân thiện, mời thực khách tô phở bò Nam Định nóng hổi, nước dùng trong vắt đầy hấp dẫn.'
   },
   {
     topic: 'Ổ bánh mì Sài Gòn đặc biệt đầy ắp thịt nguội, bơ xanh và đồ chua giòn rụm',
     character: 'Cô bán bánh mì vui tính, tay đeo bao tay nilon, thao tác cực nhanh',
-    script: 'Cảnh 1: Lưỡi dao rạch một đường dứt khoát lên ổ bánh mì nóng giòn, phết đầy pate bơ.\nCảnh 2: Gói bánh vào tờ giấy báo, đưa cho thực khách với nụ cười tươi.'
+    script: 'Cảnh 1: Cô bán hàng đeo bao tay nilon, tay thoắt rạch bánh mì và phết bơ pate cực nhanh, miệng luôn nở nụ cười vui tính.\nCảnh 2: Cận cảnh ổ bánh mì đầy ắp thịt nguội và đồ chua giòn rụm được cô bán hàng gói giấy đưa cho khách hàng.'
   },
   {
     topic: 'Ly cà phê muối thơm nồng, lớp kem mặn sánh mịn quyện cùng vị đắng đậm đà',
     character: 'Bạn barista trẻ trung, tập trung cao độ khi pha chế',
-    script: 'Cảnh 1: Rót nhẹ nhàng lớp kem muối trắng muốt lên bề mặt cà phê nâu đậm quyến rũ.\nCảnh 2: Quay chậm cảnh khuấy nhẹ ly cà phê, tạo hiệu ứng vân mây đẹp mắt.'
+    script: 'Cảnh 1: Bạn barista trẻ trung tập trung cao độ, rót nhẹ nhàng lớp kem muối trắng muốt lên bề mặt ly cà phê nâu sẫm quyến rũ.\nCảnh 2: Quay chậm cảnh barista dùng muỗng khuấy nhẹ ly cà phê muối sánh mịn, tạo hiệu ứng vân mây đẹp mắt dưới ánh sáng đèn quán.'
   },
   {
     topic: 'Mẹt bún đậu mắm tôm đầy đủ sứa, dồi sụn nướng béo ngậy và thịt chân giò luộc',
     character: 'Người phục vụ nhanh nhẹn, bưng mẹt bún đậu khổng lồ ra bàn',
-    script: 'Cảnh 1: Vắt quất vào bát mắm tôm, đánh sủi bọt trắng xóa đầy kích thích.\nCảnh 2: Thực khách chấm một miếng đậu hũ vàng giòn vào bát mắm tôm và thưởng thức.'
+    script: 'Cảnh 1: Người phục vụ nhanh nhẹn sắp xếp bún lá, dồi sụn nướng béo ngậy lên mẹt tre to tròn đầy ắp.\nCảnh 2: Phục vụ bưng mẹt bún đậu mắm tôm khổng lồ đặt xuống bàn, mắm tôm sủi bọt trắng xóa kích thích vị giác.'
   }
 ];
 
