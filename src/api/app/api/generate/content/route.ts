@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma from '../../../../lib/prisma';
 import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: Request) {
   try {
-    const { topic, tone, projectId } = await req.json();
+    const body = await req.json();
+    console.log('[V8-DEBUG] CONTENT REQUEST BODY:', { ...body, productImage: body.productImage ? 'BASE64_STUB' : 'null' });
+    
+    const { topic, tone, projectId, characterType, locationContext, numScenes, productImage } = body;
 
     if (!topic || !projectId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -16,40 +19,110 @@ export async function POST(req: Request) {
         throw new Error('GOOGLE_API_KEY is not set in environment variables');
     }
 
-    console.log(`[V8-API-KEY] Initializing, Key: ${apiKey.substring(0, 8)}...`);
-
     const ai = new GoogleGenAI({ apiKey });
+    const modelId = 'gemini-flash-latest'; 
 
-    const prompt = `Bạn là một biên kịch TikTok chuyên nghiệp.
+    let promptParts: any[] = [];
+    
+    const sceneCountStr = String(numScenes || '2 cảnh');
+    const sceneCount = parseInt(sceneCountStr.replace(/[^0-9]/g, '')) || 2;
+
+    const basePrompt = `Bạn là một biên kịch TikTok chuyên nghiệp chuyên về mảng ẩm thực.
 Hãy tạo kịch bản video ngắn cho món: ${topic}.
-Tone: ${tone}.
-Yêu cầu: Trả về một mảng JSON (Array) gồm 2 đối tượng cảnh quay.
-Mỗi đối tượng có:
-- sceneOrder: số thứ tự
-- title: tên cảnh
-- visualDescription: mô tả hình ảnh cực kỳ chi tiết cho AI tạo video (như RunwayML), mô tả bằng tiếng Anh để AI hiểu tốt nhất.
-- audioScript: lời thoại tiếng Việt.
+Tone nội dung: ${tone}.
+Nhân vật chính: ${characterType || 'Người bán hàng'} (Nếu là Nữ: hãy mô tả là cô gái xinh tươi, giọng ngọt ngào; Nếu là Nam: hãy mô tả là anh chàng dễ thương, hiền lành, lịch sự).
+Bối cảnh diễn ra: ${locationContext || 'Trong cửa hàng'}.
+
+Yêu cầu kịch bản:
+- Trả về một mảng JSON (Array) gồm đúng ${sceneCount} đối tượng cảnh quay.
+- Mỗi đối tượng có:
+    - sceneOrder: số thứ tự.
+    - title: tên ngắn gọn của cảnh.
+    - visualDescription: mô tả hình ảnh cực kỳ chi tiết bằng TIẾNG ANH để AI tạo video (như RunwayML) hiểu tốt nhất. Hãy đưa chi tiết bối cảnh và ngoại hình nhân vật vào đây.
+    - audioScript: lời thoại hoặc âm thanh nền bằng TIẾNG VIỆT, phù hợp với tính cách nhân vật đã chọn.
 
 Chỉ trả về chuỗi JSON thô, không kèm markdown, không kèm giải thích.`;
 
-    const modelId = 'gemini-flash-latest'; 
-    console.log(`[V8-API-KEY] Calling Model: ${modelId}`);
+    if (productImage && productImage.includes('base64,')) {
+      const parts = productImage.split('base64,');
+      const base64Data = parts[1];
+      const mimeType = productImage.split(';')[0].split(':')[1];
+      
+      promptParts = [
+        { text: basePrompt + `\n\nLƯU Ý ĐẶC BIỆT: Người dùng đã tải lên hình ảnh sản phẩm mẫu. 
+1. Đầu tiên, hãy kiểm tra xem hình ảnh đó có phải là đồ ăn hoặc liên quan đến ẩm thực không. Nếu KHÔNG PHẢI đồ ăn, hãy thêm một thuộc tính "warning": "Ảnh không phải đồ ăn" vào JSON trả về, nhưng vẫn cố gắng tạo kịch bản dựa trên tên món ăn: ${topic}.
+2. Nếu LÀ ĐỒ ĂN, hãy mô tả hình ảnh trong visualDescription sao cho bám sát các đặc điểm (màu sắc, hình dáng, cách bày trí) của ảnh mẫu đó.` },
+        {
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        }
+      ];
+    } else {
+      promptParts = [{ text: basePrompt }];
+    }
+
+    console.log(`[V8-API-KEY] Calling Model: ${modelId} with Multimodal: ${!!productImage}`);
 
     // 2. Generate Content
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
+    let result: any;
+    try {
+        result = await ai.models.generateContent({
+          model: modelId,
+          contents: [{ role: 'user', parts: promptParts }],
+        });
+    } catch (aiErr: any) {
+        console.error('[V8-DEBUG] AI GENERATION FAILED:', aiErr);
+        
+        // --- GRACEFUL FALLBACK ---
+        if (aiErr.message?.includes('Unable to process input image') || aiErr.message?.includes('400')) {
+          console.warn('[V8-DEBUG] AI rejected image. Falling back to text-only generation.');
+          // Retry without image
+          try {
+            result = await ai.models.generateContent({
+              model: modelId,
+              contents: [{ role: 'user', parts: [{ text: basePrompt }] }],
+            });
+            // Mock a warning into the response text manually if needed, 
+            // but we'll handle it better by just setting the warning variable later.
+            result.__forced_warning = "AI Studio không thể xử lý ảnh này (có thể do vi phạm chính sách hoặc lỗi định dạng). Đã tạo kịch bản dựa trên văn bản.";
+          } catch (retryErr: any) {
+            throw new Error(`AI Retry Error: ${retryErr.message}`);
+          }
+        } else {
+          throw new Error(`AI Studio Error: ${aiErr.message || 'Unknown AI error'}`);
+        }
+    }
 
-    const contentText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const candidate = result.candidates?.[0];
+    const part = candidate?.content?.parts?.[0];
+    const contentText = part?.text || '';
     console.log('[V8-DEBUG] RAW GENAI RESPONSE:', contentText);
+
+    if (!contentText) {
+        throw new Error('AI trả về kết quả rỗng. Vui lòng thử lại.');
+    }
 
     const jsonString = contentText.replace(/```json/g, '').replace(/```/g, '').trim();
     let scenes = [];
+    let warning = null;
+    
     try {
-        scenes = JSON.parse(jsonString);
+        const parsed = JSON.parse(jsonString);
+        if (Array.isArray(parsed)) {
+          scenes = parsed;
+        } else if (parsed.scenes) {
+          scenes = parsed.scenes;
+          warning = parsed.warning;
+        } else if (parsed.warning && Array.isArray(parsed.data)) {
+           scenes = parsed.data;
+           warning = parsed.warning;
+        } else {
+          scenes = [parsed];
+        }
     } catch (parseError) {
-        console.error('[V8-DEBUG] JSON Parse Failed. Trying to extract array...');
+        console.log('[V8-DEBUG] JSON Parse failed, trying regex extraction...');
         const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
         if (arrayMatch) {
             scenes = JSON.parse(arrayMatch[0]);
@@ -62,12 +135,11 @@ Chỉ trả về chuỗi JSON thô, không kèm markdown, không kèm giải th�
         throw new Error('Kịch bản rỗng. Hãy thử lại với chủ đề khác.');
     }
 
-    scenes = scenes.slice(0, 2);
-
-    // 2. Ensure Project Exists (Resilience for Mock/Test IDs)
+    // 2. Ensure Project Exists
+    console.log('[V8-DEBUG] Verifying Project:', projectId);
     const existingProject = await prisma.videoProject.findUnique({ where: { id: projectId } });
     if (!existingProject) {
-      console.log('Project not found, creating a dummy project for testing...');
+      console.log('[V8-DEBUG] Creating dummy user/project for:', projectId);
       await prisma.user.upsert({
         where: { id: projectId },
         update: {},
@@ -79,6 +151,7 @@ Chỉ trả về chuỗi JSON thô, không kèm markdown, không kèm giải th�
     }
 
     // 3. Save to Database
+    console.log('[V8-DEBUG] Saving script to DB...');
     const script = await prisma.videoScript.create({
       data: {
         projectId,
@@ -88,27 +161,14 @@ Chỉ trả về chuỗi JSON thô, không kèm markdown, không kèm giải th�
       },
     });
 
-    return NextResponse.json({ scriptId: script.id, scenes });
+    console.log('[V8-DEBUG] SUCCESS. Script ID:', script.id);
+    return NextResponse.json({ 
+      scriptId: script.id, 
+      scenes, 
+      warning: warning || result.__forced_warning 
+    });
   } catch (error: any) {
-    console.error('API Error:', error);
-    const raw = String(error?.message || error);
-    let msg = raw;
-    try {
-      const m = raw.match(/\{"error":\{[^}]*"message":"([^"]+)"/);
-      if (m) msg = m[1];
-    } catch {}
-    const is404 = raw.includes('404') || raw.toLowerCase().includes('not found');
-    const is429 = raw.includes('429') || raw.toLowerCase().includes('quota') || raw.toLowerCase().includes('rate');
-    if (is404) {
-      return NextResponse.json({
-        error: 'Model không tìm thấy. Kiểm tra API key và billing tại Google AI Studio.',
-      }, { status: 503 });
-    }
-    if (is429) {
-      return NextResponse.json({
-        error: 'Vượt giới hạn quota. Thử lại sau ít phút.',
-      }, { status: 429 });
-    }
-    return NextResponse.json({ error: msg || 'Lỗi tạo nội dung' }, { status: 500 });
+    console.error('[V8-CRITICAL] API Error:', error);
+    return NextResponse.json({ error: error.message || 'Lỗi hệ thống không xác định' }, { status: 500 });
   }
 }

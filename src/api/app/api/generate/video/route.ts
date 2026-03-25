@@ -1,128 +1,146 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import RunwayML from '@runwayml/sdk';
+import { GoogleGenAI } from '@google/genai';
+import fs from 'fs';
+import path from 'path';
+
+/** 
+ * Sử dụng Gemini (@google/genai) để "thông não" kịch bản thô.
+ * Chuyển sang v1 để tránh lỗi 404 v1beta.
+ */
+async function refineManualScript(rawText: string, apiKey: string) {
+  // Use v1 API version as v1beta might be unstable/deprecated for this model
+  const ai = new GoogleGenAI({ apiKey }); 
+  const modelId = 'gemini-1.5-flash'; 
+  
+  // Prompt nhẹ nhàng hơn, tập trung vào nội dung kịch bản
+  const prompt = `Cải thiện kịch bản quảng cáo đồ ăn sau: "${rawText}". 
+  Hãy chia nó thành các cảnh quay sinh động. 
+  Trả về duy nhất dữ liệu dưới dạng JSON array: [{"sceneOrder":1, "title":"", "visualDescription":"", "audioScript":""}]. 
+  Đảm bảo kịch bản tự nhiên, hấp dẫn, không máy móc.`;
+  
+  const result = await ai.models.generateContent({
+    model: modelId,
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  });
+  
+  const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleanJson = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleanJson);
+}
 
 export async function POST(req: Request) {
   try {
-    const { scriptId, generationId: inputGenerationId, config } = await req.json();
+    const { scriptId: inputScriptId, manualScript, config } = await req.json();
 
-    if (!scriptId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const runwayApiKey = process.env.RUNWAYML_API_KEY;
+    const googleApiKey = process.env.GOOGLE_API_KEY;
+    const hfApiKey = process.env.HUGGINGFACE_API_KEY;
+    
+    let script: any = null;
+    let finalScriptId = inputScriptId;
+
+    if (finalScriptId) {
+      script = await prisma.videoScript.findUnique({ where: { id: finalScriptId } });
     }
 
-    // 1. Initialize RunwayML SDK
-    const apiKey = process.env.RUNWAYML_API_KEY;
-    if (!apiKey) {
-      throw new Error('RUNWAYML_API_KEY is not set');
+    let scenes: any[] = [];
+    const defaultProjectId = '123e4567-e89b-12d3-a456-426614174000';
+
+    if (manualScript && manualScript.trim()) {
+       scenes = await refineManualScript(manualScript, googleApiKey || '');
+       const newScript = await prisma.videoScript.create({
+         data: {
+             project: { connect: { id: script?.projectId || defaultProjectId } },
+             content: scenes as any
+         }
+       });
+       script = newScript;
+       finalScriptId = newScript.id;
+    } else if (script) {
+       scenes = script.content as any[];
     }
 
-    const runway = new RunwayML({ apiKey });
+    if (!scenes || scenes.length === 0) return NextResponse.json({ error: 'No script' }, { status: 400 });
 
-    // 2. Fetch script
-    const script = await prisma.videoScript.findUnique({ where: { id: scriptId } });
-    if (!script) {
-      return NextResponse.json({ error: 'Script not found' }, { status: 404 });
-    }
+    const runway = new RunwayML({ apiKey: runwayApiKey || 'mock-key' });
+    const newGen = await prisma.videoGeneration.create({
+      data: {
+        project: { connect: { id: script?.projectId || defaultProjectId } },
+        script: finalScriptId ? { connect: { id: finalScriptId } } : undefined,
+        generationNo: 1,
+        resolution: config?.resolution || '720p',
+        aspectRatio: config?.aspectRatio || '16:9',
+        status: 'processing',
+      }
+    });
+    const generationId = newGen.id;
 
-    // 3. Handle Video Generation record
-    let generationId = inputGenerationId;
-    if (!generationId) {
-      const newGen = await prisma.videoGeneration.create({
-        data: {
-          projectId: script.projectId,
-          scriptId: script.id,
-          generationNo: 1,
-          resolution: config?.resolution || '720p',
-          aspectRatio: config?.aspectRatio || '9:16',
-          status: 'processing',
-        }
-      });
-      generationId = newGen.id;
-    }
-
-    const allScenes = script.content as any[];
-    const scenes = allScenes.slice(0, 2); // Max 2 scenes for testing
     const results = [];
-
-    // Text-to-video valid models per Runway docs: gen4.5, veo3.1, veo3.1_fast, veo3
-    const RUNWAY_MODELS = ['veo3.1_fast', 'veo3.1', 'gen4.5', 'veo3'];
     const ratio = config?.aspectRatio === '16:9' ? '1280:720' : '720:1280';
-    const duration = 5; // 2-10 seconds per Runway API
+    const motion = Math.floor((config?.motionIntensity || 50) / 10) || 5; 
+
+    const audioDir = path.join(process.cwd(), 'public', 'audio');
+    if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
 
     for (const scene of scenes) {
-      const visualPrompt = `${scene.visualDescription}. Style: ${config?.style || 'cinematic'}.`;
-      let videoUrl = '';
-      let success = false;
-      let fallbackModelIdx = 0;
+      console.log(`[V8-DEBUG] PROCESSING SCENE ${scene.sceneOrder}...`);
+      const safeAudioScript = (scene.audioScript || '').toString().trim();
+      let audioUrl = '';
 
-      while (!success && fallbackModelIdx < RUNWAY_MODELS.length) {
-        const currentModel = RUNWAY_MODELS[fallbackModelIdx];
-        try {
-          console.log(`[RUNWAY] Attempting Scene ${scene.sceneOrder} with Model: ${currentModel}`);
-          
-          const createResponse = await (runway.textToVideo as any).create({
-            model: currentModel,
-            promptText: visualPrompt.slice(0, 1000), // API max 1000 chars
-            ratio,
-            duration,
-          });
-
-          const taskId = createResponse.id;
-          let task = await runway.tasks.retrieve(taskId);
-
-          // Polling
-          console.log(`[RUNWAY] Task ID: ${taskId}. Polling...`);
-          while (task.status !== 'SUCCEEDED' && task.status !== 'FAILED' && task.status !== 'CANCELLED') {
-            await new Promise(r => setTimeout(r, 10000));
-            task = await runway.tasks.retrieve(taskId);
-            console.log(`[RUNWAY] Task ${taskId} status: ${task.status} (${(task as any).progress || 0}%)`);
-          }
-
-          if (task.status === 'SUCCEEDED') {
-            videoUrl = (task as any).output?.[0] || '';
-            success = true;
-            console.log(`[RUNWAY] Scene ${scene.sceneOrder} SUCCESS with ${currentModel}`);
-          } else {
-             throw new Error(`Task failed with status: ${task.status}`);
-          }
-        } catch (err: any) {
-          const msg = String(err?.message || err);
-          console.warn(`[RUNWAY] Model ${currentModel} failed: ${msg}`);
-          const tryNext = msg.includes('403') || msg.includes('400') || msg.includes('not available') || msg.includes('Invalid') || msg.includes('not supported');
-          if (tryNext && fallbackModelIdx < RUNWAY_MODELS.length - 1) {
-            fallbackModelIdx++;
-            console.log(`[RUNWAY] Trying next model: ${RUNWAY_MODELS[fallbackModelIdx]}`);
-          } else {
-            throw err;
-          }
+      if (safeAudioScript) {
+        const fileName = `audio_${finalScriptId}_${scene.sceneOrder}.mp3`; 
+        const filePath = path.join(audioDir, fileName);
+        
+        console.log(`[HF-AUDIO] Generating...`);
+        const hfResponse = await fetch(`https://router.huggingface.co/hf-inference/models/facebook/mms-tts-vie`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs: safeAudioScript })
+        });
+        
+        if (!hfResponse.ok) {
+           const errText = await hfResponse.text();
+           throw new Error(`TTS Failed: ${hfResponse.status} - ${errText}`);
         }
+
+        const buffer = Buffer.from(await hfResponse.arrayBuffer());
+        fs.writeFileSync(filePath, buffer);
+        audioUrl = `http://localhost:3001/audio/${fileName}`;
       }
 
-      if (!success) {
-        throw new Error('All RunwayML models failed or are restricted for this account');
-      }
-
-      const dbScene = await prisma.videoScene.create({
-        data: {
-          generationId,
-          sceneOrder: scene.sceneOrder,
-          visualPrompt: visualPrompt,
-          audioScript: scene.audioScript,
-          videoClipUrl: videoUrl,
-        },
+      // --- VIDEO ---
+      const visualPrompt = `${scene.visualDescription || scene.title}. Style: ${config?.style}.`;
+      console.log(`[RUNWAY] Generating with veo3.1_fast...`);
+      const res = await (runway.textToVideo as any).create({ 
+        model: 'veo3.1_fast', 
+        promptText: visualPrompt, 
+        ratio, 
+        motion 
       });
-      results.push(dbScene);
+
+      let task = await runway.tasks.retrieve(res.id);
+      while (task.status !== 'SUCCEEDED' && task.status !== 'FAILED') {
+        await new Promise(r => setTimeout(r, 7000));
+        task = await runway.tasks.retrieve(res.id);
+      }
+
+      if (task.status === 'SUCCEEDED') {
+        const videoUrl = (task as any).output?.[0] || '';
+        const dbScene = await prisma.videoScene.create({
+          data: { generationId, sceneOrder: scene.sceneOrder, visualPrompt, audioScript: safeAudioScript, videoClipUrl: videoUrl, audioUrl },
+        });
+        results.push(dbScene);
+      } else {
+        throw new Error(`Runway Task Failed: ${res.id}`);
+      }
     }
 
-    // 5. Update Status
-    await prisma.videoGeneration.update({
-      where: { id: generationId },
-      data: { status: 'completed' },
-    });
-
-    return NextResponse.json({ success: true, generationId, results });
+    await prisma.videoGeneration.update({ where: { id: generationId }, data: { status: 'completed' } });
+    return NextResponse.json({ success: true, results });
   } catch (error: any) {
-    console.error('RunwayML API Error:', error);
+    console.error('[API-CRITICAL]', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

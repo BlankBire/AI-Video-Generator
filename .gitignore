@@ -35,6 +35,9 @@ Thumbs.db
 
 # Build outputs
 build/
+*.tsbuildinfo
+.next/
+.cache/
 
 # Service account
 foodiegen-service-account.json
