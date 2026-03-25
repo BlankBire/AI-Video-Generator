@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { AlertCircle } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -24,7 +25,7 @@ export default function Home() {
   // State: Video Config
   const [resolution,     setResolution]     = useState<ResolutionType>('720p')
   const [aspectRatio,    setAspectRatio]    = useState<AspectRatioType>('9:16')
-  const [duration,       setDuration]       = useState<DurationType>('15s')
+  const [duration,       setDuration]       = useState<DurationType>('6s')
   const [activeStyle,    setActiveStyle]    = useState('cinematic')
   const [activeTone,     setActiveTone]     = useState(TONES[0])
   const [emotion,        setEmotion]        = useState('Vui tươi')
@@ -44,13 +45,23 @@ export default function Home() {
   const [locationContext,setLocationContext]= useState('Tại cửa hàng')
   const [mainCharacter,  setMainCharacter]  = useState('')
   const [script,         setScript]         = useState('')
+  const [scriptId,       setScriptId]       = useState('')
   const [numScenes,      setNumScenes]      = useState('2 cảnh')
   const [videoUrl,       setVideoUrl]       = useState('')
+  const [audioUrl,       setAudioUrl]       = useState('')
   const [productImage,   setProductImage]   = useState<string | null>(null)
 
-  // State: UI
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState('')
+  const [toast, setToast] = useState<{ message: string; hiding: boolean } | null>(null)
+
+  const showToast = (message: string) => {
+    setToast({ message, hiding: false })
+    setTimeout(() => {
+      setToast(prev => prev ? { ...prev, hiding: true } : null)
+      setTimeout(() => setToast(null), 500)
+    }, 4000)
+  }
 
   const handleFillSamples = () => {
     const randomIdx = Math.floor(Math.random() * RANDOM_TOPICS.length)
@@ -60,20 +71,36 @@ export default function Home() {
     setScript(item.script)
   }
 
-  const handleGenerate = async () => {
+  const handleReset = () => {
+    setFoodTopic('')
+    setMainCharacter('')
+    setCharacterType('Nam')
+    setLocationContext('Tại cửa hàng')
+    setScript('')
+    setScriptId('')
+    setVideoUrl('')
+    setAudioUrl('')
+    setProductImage(null)
+    setStatus('Đã làm mới form.')
+  }
+
+  const handleDownload = () => {
+    if (!videoUrl) return
+    window.open(videoUrl, '_blank')
+  }
+
+  const handleGenerateScript = async () => {
     try {
+      if (!foodTopic) {
+        setStatus('Vui lòng nhập chủ đề món ăn.')
+        return
+      }
       setLoading(true)
-      setStatus('Khởi tạo dự án...')
-
-      // 0. Create Project (Mock/Simple)
-      // In real app, we might check if a project exists or create a new one
-      // For now, let's assume we have a simple internal user ID
-      const userId = '123e4567-e89b-12d3-a456-426614174000' // Mock UUID
-
       setStatus('Đang phác thảo kịch bản...')
 
-      // 1. Generate Content (Script)
-      const resContent = await fetch('http://localhost:3001/api/generate/content', {
+      const userId = '123e4567-e89b-12d3-a456-426614174000' 
+
+      const resContent = await fetch(`${API_BASE}/api/generate/content`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -82,44 +109,77 @@ export default function Home() {
           projectId: userId,
           characterType,
           locationContext,
-          numScenes
+          numScenes,
+          productImage 
         }),
       })
       const dataContent = await resContent.json()
       if (dataContent.error) throw new Error(dataContent.error)
 
-      setScript(JSON.stringify(dataContent.scenes, null, 2))
-      setStatus('Đang gửi lệnh tạo video tới Veo3...')
+      setScriptId(dataContent.scriptId)
+      
+      if (dataContent.warning) {
+        showToast(dataContent.warning)
+      }
+      
+      // Format script for human reading
+      const formattedScript = dataContent.scenes.map((s: any) => 
+        `CẢNH ${s.sceneOrder}: ${s.title}\n- Hình ảnh: ${s.visualDescription}\n- Lời thoại: ${s.audioScript}`
+      ).join('\n\n')
+      
+      setScript(formattedScript)
+      setStatus('Đã tạo kịch bản thành công! Bạn có thể chỉnh sửa trước khi tạo video.')
+    } catch (err: any) {
+      console.error(err)
+      setStatus('Lỗi tạo kịch bản: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      // 2. Generate Video
-      const resVideo = await fetch('http://localhost:3001/api/generate/video', {
+  const handleGenerateVideo = async () => {
+    try {
+      if (!script.trim()) {
+        setStatus('Vui lòng nhập kịch bản hoặc nhấn tạo kịch bản trước.')
+        return
+      }
+      setLoading(true)
+      setStatus('Đang gửi lệnh tạo video tới hệ thống AI...')
+
+      const resVideo = await fetch(`${API_BASE}/api/generate/video`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          scriptId: dataContent.scriptId,
-          generationId: undefined,
+          scriptId: scriptId,
+          manualScript: script, // Send current textarea content
           config: {
             resolution,
             aspectRatio,
             duration,
             style: activeStyle,
             motionIntensity,
+            emotion,
+            voiceGender,
+            voiceSpeed,
+            bgMusic,
+            productImage
           }
         }),
       })
       const dataVideo = await resVideo.json()
       if (dataVideo.error) throw new Error(dataVideo.error)
 
-      // Get the first clip URL as preview (use proxy for Google URLs - they need API key)
       if (dataVideo.results && dataVideo.results.length > 0) {
-        const raw = dataVideo.results[0].videoClipUrl
-        setVideoUrl(raw ? toProxyUrl(raw) : '')
+        const rawVideo = dataVideo.results[0].videoClipUrl
+        const rawAudio = dataVideo.results[0].audioUrl
+        setVideoUrl(rawVideo ? toProxyUrl(rawVideo) : '')
+        setAudioUrl(rawAudio || '')
       }
 
       setStatus(dataVideo.partial ? (dataVideo.message || 'Đã tạo một phần.') : 'Hoàn tất! Video đã sẵn sàng.')
     } catch (err: any) {
       console.error(err)
-      setStatus('Lỗi: ' + err.message)
+      setStatus('Lỗi tạo video: ' + err.message)
     } finally {
       setLoading(false)
     }
@@ -142,7 +202,7 @@ export default function Home() {
             activeTone={activeTone} setActiveTone={setActiveTone}
             numScenes={numScenes} setNumScenes={setNumScenes}
             onSuggest={handleFillSamples}
-            onGenerateScript={handleGenerate}
+            onGenerateScript={handleGenerateScript}
             loading={loading}
           />
 
@@ -172,9 +232,9 @@ export default function Home() {
             </button>
             <button 
               className="btn-generate" 
-              onClick={handleGenerate}
-              disabled={loading}
-              style={{ width: 'auto', padding: '12px 32px', minWidth: 180, opacity: loading ? 0.7 : 1 }}
+              onClick={handleGenerateVideo}
+              disabled={loading || !script.trim()}
+              style={{ width: 'auto', padding: '12px 32px', minWidth: 180, opacity: (loading || !script.trim()) ? 0.7 : 1 }}
             >
               <span>{loading ? 'Đang tạo...' : 'Tạo video'}</span>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -187,6 +247,7 @@ export default function Home() {
         {/* RIGHT — Preview & Summary */}
         <PreviewPanel 
           videoUrl={videoUrl}
+          audioUrl={audioUrl}
           productImage={productImage}
           setProductImage={setProductImage}
           config={{
@@ -197,8 +258,63 @@ export default function Home() {
             activeStyle,
             activeTone
           }} 
+          onReset={handleReset}
+          onDownload={handleDownload}
         />
       </main>
+
+      {/* Toast Notification - Right Side Slide-in (Orange Theme) */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          top: '80px', // Near navbar
+          right: '24px',
+          zIndex: 9999,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          maxWidth: '360px',
+          opacity: toast.hiding ? 0 : 1,
+          transform: `translateX(${toast.hiding ? '100%' : '0'})`,
+          transition: 'all 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          <div style={{
+            background: '#ea580c', // Dark orange accent
+            color: 'white',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            pointerEvents: 'auto',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              color: 'white',
+              background: 'rgba(255, 255, 255, 0.2)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <AlertCircle size={20} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '14px', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                Thông báo từ AI Studio
+              </span>
+              <p style={{ fontSize: '13px', opacity: 0.9, lineHeight: 1.4, margin: 0 }}>
+                {toast.message}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
