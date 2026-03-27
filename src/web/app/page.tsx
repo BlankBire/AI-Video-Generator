@@ -95,7 +95,12 @@ export default function Home() {
 
   const handleDownload = () => {
     if (!videoUrl) return
-    window.open(videoUrl, '_blank')
+    const a = document.createElement('a')
+    a.href = videoUrl
+    a.download = `foodiegen_${Date.now()}.mp4`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   const handleGenerateScript = async () => {
