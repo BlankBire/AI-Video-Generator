@@ -44,8 +44,10 @@ export default function Home() {
   const [characterType,  setCharacterType]  = useState('Nam')
   const [locationContext,setLocationContext]= useState('Tại cửa hàng')
   const [mainCharacter,  setMainCharacter]  = useState('')
+  const [videoGenre,     setVideoGenre]     = useState('Giới thiệu món ăn')
   const [script,         setScript]         = useState('')
   const [scriptId,       setScriptId]       = useState('')
+  const [projectId,      setProjectId]      = useState('123e4567-e89b-12d3-a456-426614174000')
   const [numScenes,      setNumScenes]      = useState('2 cảnh')
   const [videoUrl,       setVideoUrl]       = useState('')
   const [audioUrl,       setAudioUrl]       = useState('')
@@ -62,6 +64,44 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isReadingMode])
+
+  // Restore Draft from LocalStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('foodiegen_draft')
+    if (saved) {
+      try {
+        const d = JSON.parse(saved)
+        if (d.resolution) setResolution(d.resolution)
+        if (d.aspectRatio) setAspectRatio(d.aspectRatio)
+        if (d.duration) setDuration(d.duration)
+        if (d.activeStyle) setActiveStyle(d.activeStyle)
+        if (d.activeTone) setActiveTone(d.activeTone)
+        if (d.emotion) setEmotion(d.emotion)
+        if (d.motionIntensity) setMotionIntensity(d.motionIntensity)
+        if (d.transitions !== undefined) setTransitions(d.transitions)
+        if (d.charConsistency !== undefined) setCharConsistency(d.charConsistency)
+        if (d.voiceGender) setVoiceGender(d.voiceGender)
+        if (d.language) setLanguage(d.language)
+        if (d.voiceSpeed) setVoiceSpeed(d.voiceSpeed)
+        if (d.bgMusic !== undefined) setBgMusic(d.bgMusic)
+        if (d.foodTopic) setFoodTopic(d.foodTopic)
+        if (d.characterType) setCharacterType(d.characterType)
+        if (d.locationContext) setLocationContext(d.locationContext)
+        if (d.mainCharacter) setMainCharacter(d.mainCharacter)
+        if (d.videoGenre) setVideoGenre(d.videoGenre)
+        if (d.script) setScript(d.script)
+        if (d.productImage) setProductImage(d.productImage)
+        if (d.videoUrl) setVideoUrl(d.videoUrl)
+        if (d.audioUrl) setAudioUrl(d.audioUrl)
+        if (d.scriptId) setScriptId(d.scriptId)
+        if (d.projectId) setProjectId(d.projectId)
+        if (d.numScenes) setNumScenes(d.numScenes)
+        console.log('[DRAFT] Restored from LocalStorage (Topic:', d.foodTopic, ')')
+      } catch (e) {
+        console.error('Failed to parse draft', e)
+      }
+    }
+  }, [])
 
   const showToast = (message: string) => {
     setToast({ message, hiding: false })
@@ -100,16 +140,19 @@ export default function Home() {
     // Reset Content
     setFoodTopic('')
     setMainCharacter('')
+    setVideoGenre('Giới thiệu món ăn')
     setCharacterType('Nam')
     setLocationContext('Tại cửa hàng')
     setScript('')
     setScriptId('')
+    setProjectId('')
     setNumScenes('2 cảnh')
     setVideoUrl('')
     setAudioUrl('')
     setProductImage(null)
     setIsReadingMode(false)
     setStatus('')
+    localStorage.removeItem('foodiegen_draft')
     
     alert('Đã làm mới toàn bộ tùy chọn về mặc định!')
   }
@@ -122,6 +165,51 @@ export default function Home() {
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
+  }
+
+  const handleSaveDraft = async () => {
+    try {
+      setLoading(true)
+      setStatus('Đang lưu bản nháp...')
+
+      const payload = {
+        projectId,
+        scriptId,
+        topic: foodTopic,
+        scenes: [], // Nếu có parser kịch bản thì đưa vào đây
+        config: {
+          resolution, aspectRatio, duration, activeStyle, activeTone,
+          emotion, motionIntensity, transitions, charConsistency,
+          voiceGender, language, voiceSpeed, bgMusic,
+          characterType, locationContext, mainCharacter, numScenes, 
+          script, foodTopic, videoGenre, productImage, videoUrl, audioUrl
+        }
+      }
+
+      const res = await fetch(`${API_BASE}/api/projects/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+
+      if (data.projectId) setProjectId(data.projectId)
+      if (data.scriptId) setScriptId(data.scriptId)
+
+      // Lưu vào LocalStorage để khôi phục khi F5 (giống draw.io)
+      const draftData = { ...payload.config, projectId: data.projectId || projectId, scriptId: data.scriptId || scriptId }
+      localStorage.setItem('foodiegen_draft', JSON.stringify(draftData))
+
+      alert('ĐÃ LƯU BẢN NHÁP THÀNH CÔNG!\nBạn có thể quay lại chỉnh sửa bất cứ lúc nào.')
+      setStatus('Đã lưu bản nháp.')
+    } catch (err: any) {
+      console.error(err)
+      alert('LỖI LƯU BẢN NHÁP:\n' + err.message)
+      setStatus('Lỗi lưu nháp.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGenerateScript = async () => {
@@ -152,6 +240,7 @@ export default function Home() {
       if (dataContent.error) throw new Error(dataContent.error)
 
       setScriptId(dataContent.scriptId)
+      if (dataContent.projectId) setProjectId(dataContent.projectId)
       
       if (dataContent.warning) {
         showToast(dataContent.warning)
@@ -244,6 +333,8 @@ export default function Home() {
             onSuggest={handleFillSamples}
             onGenerateScript={handleGenerateScript}
             onToggleReadingMode={() => setIsReadingMode(true)}
+            videoGenre={videoGenre}
+            setVideoGenre={setVideoGenre}
             loading={loading}
           />
 
@@ -268,8 +359,13 @@ export default function Home() {
           {/* Main Action Buttons — Compact & Clean */}
           <div className="main-actions-container">
             {status && <p style={{ marginRight: 'auto', color: '#6366f1', fontSize: '0.9rem' }}>{status}</p>}
-            <button className="btn-secondary btn-draft" style={{ padding: '12px 24px', minWidth: 120 }}>
-              Lưu nháp
+            <button 
+              className="btn-secondary btn-draft" 
+              onClick={handleSaveDraft}
+              disabled={loading}
+              style={{ padding: '12px 24px', minWidth: 120 }}
+            >
+              {loading && status === 'Đang lưu bản nháp...' ? 'Đang lưu...' : 'Lưu nháp'}
             </button>
             <button 
               className="btn-generate" 

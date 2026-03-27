@@ -19,6 +19,8 @@ interface ContentSectionProps {
   onSuggest: () => void;
   onGenerateScript: () => void;
   onToggleReadingMode?: () => void;
+  videoGenre: string;
+  setVideoGenre: (v: string) => void;
   loading: boolean;
 }
 
@@ -33,6 +35,8 @@ export const ContentSection = ({
   onSuggest,
   onGenerateScript,
   onToggleReadingMode,
+  videoGenre,
+  setVideoGenre,
   loading
 }: ContentSectionProps) => (
   <div style={{ display:'flex', flexDirection:'column', gap:'var(--space-4)' }}>
@@ -95,7 +99,11 @@ export const ContentSection = ({
       <div className="form-row" style={{ marginBottom: 'var(--space-5)' }}>
         <div className="form-group" style={{ marginBottom:0 }}>
           <label className="form-label">Thể loại</label>
-          <select className="form-select">
+          <select 
+            className="form-select" 
+            value={videoGenre} 
+            onChange={e => setVideoGenre(e.target.value)}
+          >
             <option>Giới thiệu món ăn</option>
             <option>Review nhà hàng</option>
             <option>Công thức nấu ăn</option>
