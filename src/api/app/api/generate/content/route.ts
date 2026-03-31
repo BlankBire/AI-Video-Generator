@@ -40,7 +40,7 @@ THÔNG TIN QUAN TRỌNG:
 
 YÊU CẦU CẤU TRÚC JSON (BẮT BUỘC TRẢ VỀ ĐỐI TƯỢNG JSON):
 {
-  "fullAudioScript": "Lời thuyết minh chi tiết cho toàn bộ video (khoảng 30-40 từ, ý nghĩa).",
+  "fullAudioScript": "Lời thuyết minh cực kỳ ngắn gọn (Tối đa 25-30 từ cho toàn bộ video), ý nghĩa, cô đọng.",
   "scenes": [
     {
       "sceneOrder": 1,

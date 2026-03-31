@@ -87,7 +87,10 @@ export async function POST(req: Request) {
     let finalScriptId = inputScriptId;
 
     if (finalScriptId) {
-      script = await prisma.videoScript.findUnique({ where: { id: finalScriptId } });
+      script = await prisma.videoScript.findUnique({ 
+        where: { id: finalScriptId },
+        include: { project: true }
+      });
     }
 
     let scenes: any[] = [];
@@ -143,59 +146,123 @@ export async function POST(req: Request) {
     }).join(' [TRANSITION] ').substring(0, 1000); 
 
     let audioUrl = '';
-    const audioFileName = `combined_${finalScriptId}.mp3`;
+    const audioFileName = `fpt_${finalScriptId}.mp3`;
     const audioFilePath = path.join(audioDir, audioFileName);
 
     if (totalAudioScript.trim()) {
-      console.log(`[ELEVENLABS] Generating COMBINED TTS (Turbo v2.5)...`);
-      // Sử dụng Voice ID mặc định (Adam & Rachel) - Chắc chắn tồn tại và hốt được tiếng Việt via Turbo v2.5
-      const voiceId = config?.voiceGender === 'Nữ' ? '21m00Tcm4TlvDq8ikWAM' : 'pNInz6obpgDQGcFmaJgB';
-      const elApiKey = process.env.ELEVENLABS_API_KEY;
-      const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-          method: 'POST',
-          headers: { 'xi-api-key': elApiKey || '', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            text: totalAudioScript,
-            model_id: 'eleven_turbo_v2_5', // Model tối ưu nhất cho tiếng Việt 2026
-            voice_settings: { stability: 0.5, similarity_boost: 0.75 }
-          })
-      });
+      console.log(`[FPT-AI] Generating TTS with Voice: ${config?.voiceGender === 'Nữ' ? 'Ban Mai' : 'Lê Minh'}...`);
+      const fptApiKey = process.env.FPT_AI_API_KEY;
+      const fptVoice = config?.voiceGender === 'Nữ' ? 'banmai' : 'leminh';
+      const fptSpeed = Math.floor(((config?.voiceSpeed || 50) / 100) * 6) - 3;
       
-      if (elResponse.ok) {
-        const buffer = Buffer.from(await elResponse.arrayBuffer());
-        fs.writeFileSync(audioFilePath, buffer);
-        audioUrl = `/audio/${audioFileName}`;
-        console.log(`[ELEVENLABS] SUCCESS. Audio saved to: ${audioFilePath}`);
-      } else {
-        const elErr = await elResponse.text();
-        console.error(`[ELEVENLABS-ERROR] Status: ${elResponse.status}. Details: ${elErr}`);
+      try {
+        // --- FIX CHỐT HẠ: Đúng giao thức FPT.AI v5 ---
+        // Tham số đưa lên Headers, Body chỉ chứa văn bản thô (Raw Text)
+        const fptRes = await fetch(`https://api.fpt.ai/hmi/tts/v5`, {
+          method: 'POST',
+          headers: { 
+            'api_key': fptApiKey || '',
+            'voice': fptVoice,
+            'speed': String(fptSpeed),
+            'format': 'mp3'
+          },
+          body: totalAudioScript.trim()
+        });
+        
+        const fptData = await fptRes.json();
+        if (fptData.async && fptData.error === 0) {
+          const asyncUrl = fptData.async;
+          console.log(`[FPT-AI] Async URL received: ${asyncUrl}. Waiting for file...`);
+          
+          // Polling mechanism (Max 60s)
+          let audioBuffer: Buffer | null = null;
+          console.log(`[FPT-AI] Start polling for audio file...`);
+          for (let i = 0; i < 30; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const checkRes = await fetch(asyncUrl);
+              // Kiểm tra kỹ Content-Type để đảm bảo file đã "chín"
+              if (checkRes.ok && checkRes.headers.get('content-type')?.includes('audio')) {
+                audioBuffer = Buffer.from(await checkRes.arrayBuffer());
+                break;
+              }
+              process.stdout.write('.'); 
+            } catch (e) {
+              // Not ready yet
+            }
+          }
+          console.log(''); 
+          
+          if (audioBuffer) {
+            fs.writeFileSync(audioFilePath, audioBuffer);
+            audioUrl = `/audio/${audioFileName}`;
+            console.log(`[FPT-AI] SUCCESS. Audio saved to ${audioFilePath}`);
+          } else {
+            console.error(`[FPT-AI] Polling timeout (60s).`);
+          }
+        } else {
+          console.error(`[FPT-AI] API Error: ${fptData.message || 'Unknown'}`);
+        }
+      } catch (err: any) {
+        console.error(`[FPT-AI-CRITICAL] Network error: ${err.message}`);
       }
     }
 
-    // veo3.1_fast là model khả dụng trong tài khoản của bạn.
-    const RUNWAY_MODELS = ['veo3.1_fast'] as const;
-    const visualPrompt = `A 6-second cinematic 4k video. ${combinedVisualPrompt}. Style: ${config?.style}. Photorealistic, raw, material texture. NO SMOKE, NO STEAM. High detailed lip sync facial features.`.slice(0, 1000);
-    const ratio = config?.aspectRatio === '16:9' ? '1280:720' : '720:1280';
-    const duration = 6; // Bắt buộc là 4, 6 hoặc 8 cho model này. 6s là hoàn hảo.
+    // --- RUNWAY CONFIGURATION (DYNAMIC & STABLE) ---
+    const targetDur = parseInt(String(config?.duration || '6').replace(/[^0-9]/g, '')) || 6;
+    let modelId = 'veo3.1_fast';
+    let duration = targetDur; // Try current request
+    
+    // Smart Model Picker
+    if (targetDur === 5 || targetDur === 10) {
+      modelId = 'gen3a_turbo';
+    } else {
+      modelId = 'veo3.1_fast';
+      duration = 6; // Default safe for Veo
+    }
 
-    console.log(`[RUNWAY] Generating SINGLE 6S VIDEO...`);
+    const projectTopic = script?.project?.storyTopic || script?.project?.title || 'Delicious Food';
+
+    // Xây dựng prompt chi tiết dựa trên mọi cấu hình người dùng chọn
+    const visualPrompt = [
+      `A ${duration}-second cinematic 4k video about ${projectTopic}.`,
+      combinedVisualPrompt,
+      `Style: ${config?.activeStyle || 'cinematic'}.`,
+      `Emotion: ${config?.emotion || 'natural'}.`,
+      `Motion: Intensity ${config?.motionIntensity || 50}/100.`,
+      config?.charConsistency ? `Maintain absolute character consistency.` : ``,
+      config?.transitions ? `Smooth transitions between segments.` : ``,
+      `Photorealistic, raw, high detailed materials, 8k resolution standards.`
+    ].filter(Boolean).join(' ').slice(0, 1000);
+    
+    const ratio = config?.aspectRatio === '16:9' ? '1280:720' : '720:1280';
+
+    console.log(`[RUNWAY] Generating ${duration}S VIDEO with ${modelId}...`);
     let res: { id: string } | null = null;
     let lastErr: any = null;
     
-    for (const modelId of RUNWAY_MODELS) {
-      try {
-        console.log(`[RUNWAY] Trying model: ${modelId}`);
-        res = await (runway.textToVideo as any).create({
-          model: modelId,
-          promptText: visualPrompt,
-          ratio,
-          // Bỏ duration để Runway tự mặc định 5s, tránh lỗi validation 400
-        });
-        break;
-      } catch (e: any) {
-        lastErr = e;
-        console.warn(`[RUNWAY] ${modelId} failed:`, e?.message || e);
-        continue;
+    try {
+      res = await (runway.textToVideo as any).create({
+        model: modelId,
+        promptText: visualPrompt,
+        ratio,
+        duration, // Now fully dynamic
+      });
+    } catch (e: any) {
+      lastErr = e;
+      console.warn(`[RUNWAY] ${modelId} failed:`, e?.message || e);
+      // Fallback to safe 6s if 10s or 5s fails
+      if (modelId !== 'veo3.1_fast') {
+         console.log(`[RUNWAY] Falling back to veo3.1_fast (6s)...`);
+         try {
+           res = await (runway.textToVideo as any).create({
+             model: 'veo3.1_fast',
+             promptText: visualPrompt,
+             ratio,
+           });
+         } catch (fallbackErr: any) {
+           lastErr = fallbackErr;
+         }
       }
     }
 

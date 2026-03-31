@@ -155,13 +155,20 @@ export default function Home() {
   }
 
   const handleDownload = () => {
-    if (!videoUrl) return
-    const a = document.createElement('a')
-    a.href = videoUrl
-    a.download = `foodiegen_${Date.now()}.mp4`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    if (!videoUrl) {
+      alert('Vui lòng tạo video trước khi tải xuống!')
+      return
+    }
+    
+    // Microsoft-style "Save As" experience
+    const link = document.createElement('a')
+    link.href = videoUrl
+    link.setAttribute('download', `FoodieGen_Video_${Date.now()}.mp4`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    showToast('Bắt đầu tải xuống video...')
   }
 
   const handleSaveDraft = async () => {
