@@ -3,13 +3,43 @@
 import { useState, useEffect } from 'react'
 import { AlertCircle } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001'
 
 /** Convert Google file URL to proxy URL (adds API key server-side) */
 function toProxyUrl(raw: string): string {
   if (!raw?.startsWith('https://generativelanguage.googleapis.com/')) return raw
   const base64 = btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
   return `${API_BASE}/api/video/proxy?u=${encodeURIComponent(base64)}`
+}
+
+/** Prepend API_BASE for relative audio/video paths (formerly handled by rewrites) */
+function toAssetUrl(url: string): string {
+  if (!url) return url
+  if (url.startsWith('/audio') || url.startsWith('/videos')) {
+    return `${API_BASE}${url}`
+  }
+  return url
+}
+
+/** Robust fetch with retries for production backend startup */
+async function fetchWithRetry(url: string, options: any, retries = 3, delay = 2000): Promise<Response> {
+  try {
+    const res = await fetch(url, options)
+    // If we get a 503 or 429, we might want to retry even if fetch didn't "fail" in the network sense
+    if ((res.status === 503 || res.status === 429) && retries > 0) {
+      console.warn(`Server returned ${res.status}. Retrying in ${delay}ms...`)
+      await new Promise(r => setTimeout(r, delay))
+      return fetchWithRetry(url, options, retries - 1, delay)
+    }
+    return res
+  } catch (err) {
+    if (retries > 0) {
+      console.warn(`Fetch network error. Retrying in ${delay}ms... (${retries} left)`)
+      await new Promise(r => setTimeout(r, delay))
+      return fetchWithRetry(url, options, retries - 1, delay)
+    }
+    throw err
+  }
 }
 import { TONES, CHARACTERS, VOICES } from '../constants'
 import { ResolutionType, AspectRatioType, DurationType } from '../types'
@@ -20,6 +50,7 @@ import { ContentSection } from '../components/features/ContentSection'
 import { VideoConfigSection } from '../components/features/VideoConfigSection'
 import { VisualAudioSection } from '../components/features/VisualAudioSection'
 import { PreviewPanel } from '../components/features/PreviewPanel'
+import { SettingsModal } from '../components/features/SettingsModal'
 
 export default function Home() {
   // State: Video Config
@@ -59,6 +90,7 @@ export default function Home() {
   const [status, setStatus] = useState('')
   const [toast, setToast] = useState<{ message: string; hiding: boolean } | null>(null)
   const [isReadingMode, setIsReadingMode] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isReadingMode) setIsReadingMode(false)
@@ -164,7 +196,7 @@ export default function Home() {
     
     // Microsoft-style "Save As" experience
     const link = document.createElement('a')
-    link.href = videoUrl
+    link.href = toAssetUrl(videoUrl)
     link.setAttribute('download', `FoodieGen_Video_${Date.now()}.mp4`)
     document.body.appendChild(link)
     link.click()
@@ -211,7 +243,7 @@ export default function Home() {
       setStatus('Đã lưu bản nháp.')
     } catch (err: any) {
       console.error(err)
-      alert('LỖI LƯU BẢN NHÁP:\n' + err.message)
+      alert('Không thể lưu bản nháp. Vui lòng kiểm tra lại kết nối hoặc hệ thống database.')
       setStatus('Lỗi lưu nháp.')
     } finally {
       setLoading(false)
@@ -229,9 +261,14 @@ export default function Home() {
 
       const userId = '123e4567-e89b-12d3-a456-426614174000' 
 
-      const resContent = await fetch(`${API_BASE}/api/generate/content`, {
+      const resContent = await fetchWithRetry(`${API_BASE}/api/generate/content`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-runway-api-key': localStorage.getItem('foodiegen_runway_key') || '',
+          'x-google-api-key': localStorage.getItem('foodiegen_google_key') || '',
+          'x-fpt-api-key': localStorage.getItem('foodiegen_fpt_key') || '',
+        },
         body: JSON.stringify({ 
           topic: foodTopic, 
           tone: activeTone, 
@@ -269,8 +306,17 @@ export default function Home() {
       setStatus('Kịch bản đã sẵn sàng.')
     } catch (err: any) {
       console.error(err)
-      alert('LỖI TẠO KỊCH BẢN:\n' + err.message)
-      setStatus('Lỗi tạo kịch bản.')
+      let msg = 'Đã xảy ra lỗi khi kết nối với AI Studio. Vui lòng thử lại sau ít phút.'
+      
+      if (err.message.includes('API Key')) {
+        msg = 'Quá trình tạo kịch bản thất bại. Vui lòng kiểm tra lại Google Gemini API Key trong phần Cài đặt.'
+      } else if (err.message.includes('503') || err.message.toLowerCase().includes('high demand') || err.message.includes('UNAVAILABLE')) {
+        msg = 'Hệ thống AI của Google hiện đang bị quá tải (High Demand). Đây là lỗi từ máy chủ Google Gemini, vui lòng đợi vài giây rồi thử lại nhé!'
+      }
+      
+      alert(msg)
+      console.error("[FETCH-FAILURE]", err);
+      setStatus(`Lỗi: ${err.message || 'Không xác định'}`)
     } finally {
       setLoading(false)
     }
@@ -285,9 +331,14 @@ export default function Home() {
       setLoading(true)
       setStatus('Đang gửi lệnh tạo video tới hệ thống AI...')
 
-      const resVideo = await fetch(`${API_BASE}/api/generate/video`, {
+      const resVideo = await fetchWithRetry(`${API_BASE}/api/generate/video`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-google-api-key': localStorage.getItem('foodiegen_google_key') || '',
+          'x-runway-api-key': localStorage.getItem('foodiegen_runway_key') || '',
+          'x-fpt-api-key': localStorage.getItem('foodiegen_fpt_key') || '',
+        },
         body: JSON.stringify({ 
           scriptId: scriptId,
           manualScript: script, // Send current textarea content
@@ -309,10 +360,15 @@ export default function Home() {
       if (dataVideo.error) throw new Error(dataVideo.error)
 
       if (dataVideo.results && dataVideo.results.length > 0) {
-        setVideoScenes(dataVideo.results)
+        const processedResults = dataVideo.results.map((r: any) => ({
+          ...r,
+          videoClipUrl: toAssetUrl(r.videoClipUrl),
+          audioUrl: toAssetUrl(r.audioUrl)
+        }))
+        setVideoScenes(processedResults)
         // Compatibility for old code
-        setVideoUrl(dataVideo.results[0].videoClipUrl)
-        setAudioUrl(dataVideo.results[0].audioUrl)
+        setVideoUrl(processedResults[0].videoClipUrl)
+        setAudioUrl(processedResults[0].audioUrl)
         
         alert('ĐÃ TẠO VIDEO THÀNH CÔNG!')
         setStatus('Hoàn tất tạo video.')
@@ -323,7 +379,10 @@ export default function Home() {
       setStatus(msg)
     } catch (err: any) {
       console.error(err)
-      alert('LỖI TẠO VIDEO:\n' + err.message)
+      const msg = err.message.includes('API Key')
+        ? 'Không thể tạo video. Vui lòng đảm bảo bạn đã nhập đầy đủ API Key (Runway, Google, FPT) trong phần Cài đặt.'
+        : 'Quá trình tạo video gặp lỗi (có thể do hệ thống AI quá tải hoặc hết credit). Vui lòng thử lại sau.'
+      alert(msg)
       setStatus('Lỗi tạo video.')
     } finally {
       setLoading(false)
@@ -332,7 +391,7 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', padding: '0 var(--space-6) var(--space-8)' }}>
-      <AppHeader />
+      <AppHeader onOpenSettings={() => setIsSettingsOpen(true)} />
 
       <main className="main-grid-responsive">
         {/* LEFT — Scrollable form */}
@@ -502,6 +561,11 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* Settings Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   )
 }

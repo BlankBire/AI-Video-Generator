@@ -1,12 +1,45 @@
 import React from 'react';
+import { Settings } from 'lucide-react';
 
-export const AppHeader = () => (
+interface AppHeaderProps {
+  onOpenSettings?: () => void;
+}
+
+export const AppHeader: React.FC<AppHeaderProps> = ({ onOpenSettings }) => (
   <header className="header-responsive" style={{
     textAlign: 'center',
     padding: 'var(--space-8) 0 var(--space-6)',
     borderBottom: '1px solid var(--border-default)',
     marginBottom: 'var(--space-6)',
+    position: 'relative'
   }}>
+    <button 
+      onClick={onOpenSettings}
+      style={{
+        position: 'absolute',
+        top: '24px',
+        right: '0',
+        background: 'rgba(255, 255, 255, 0.8)',
+        border: '1px solid var(--border-default)',
+        borderRadius: '12px',
+        padding: '10px',
+        color: '#64748b',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: '0.85rem',
+        fontWeight: 500,
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+        transition: 'all 0.2s'
+      }}
+      title="Cài đặt API"
+      className="btn-settings-header"
+    >
+      <Settings size={18} />
+      <span className="hide-mobile">Cài đặt</span>
+    </button>
+
     <div style={{
       display: 'inline-flex',
       alignItems: 'center',
@@ -18,7 +51,7 @@ export const AppHeader = () => (
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <img 
-          src="/logo.png" 
+          src="logo.png" 
           alt="FoodieGen Logo" 
           style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
         />

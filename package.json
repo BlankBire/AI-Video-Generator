@@ -2,6 +2,7 @@
   "name": "foodiegen",
   "private": true,
   "version": "0.1.0",
+  "main": "electron/main.js",
   "workspaces": [
     "src/*",
     "packages/*"
@@ -10,10 +11,86 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "type-check": "turbo run type-check"
+    "type-check": "turbo run type-check",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on -t 60000 http://127.0.0.1:3000 && electron .\"",
+    "electron:build": "turbo run build && node scripts/prepare-bins.js && electron-builder",
+    "postelectron:build": "node scripts/copy-prisma-dist.js",
+    "build:env": "npx dotenv -e .env -- npm run build"
   },
+  "dependencies": {},
   "devDependencies": {
-    "turbo": "^2.3.3"
+    "@google/genai": "1.50.1",
+    "@prisma/client": "6.19.3",
+    "@runwayml/sdk": "3.20.0",
+    "concurrently": "^9.2.1",
+    "dotenv-cli": "^11.0.0",
+    "electron": "^41.2.1",
+    "electron-builder": "^26.8.1",
+    "next": "15.2.1",
+    "prisma": "6.19.3",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "styled-jsx": "5.1.7",
+    "turbo": "^2.3.3",
+    "wait-on": "^9.0.5"
+  },
+  "build": {
+    "appId": "com.foodiegen.app",
+    "productName": "FoodieGen",
+    "asar": true,
+    "asarUnpack": [],
+    "files": [
+      "electron/main.js",
+      "electron/preload.js",
+      "src/web/out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/.prisma/client/query-engine-windows.exe",
+        "to": "prisma/query-engine-windows.exe"
+      },
+      {
+        "from": "bin/msvc/msvcp140.dll",
+        "to": "prisma/msvcp140.dll"
+      },
+      {
+        "from": "bin/msvc/vcruntime140.dll",
+        "to": "prisma/vcruntime140.dll"
+      },
+      {
+        "from": "bin/msvc/template.db",
+        "to": "prisma/template.db"
+      },
+      {
+        "from": "bin/msvc/vcruntime140_1.dll",
+        "to": "prisma/vcruntime140_1.dll"
+      },
+      {
+        "from": "node_modules/.prisma",
+        "to": "node_modules/.prisma"
+      },
+      {
+        "from": "src/api/.next/standalone/src/api",
+        "to": "api-server"
+      },
+      {
+        "from": "src/api/.next/standalone/node_modules",
+        "to": "api-server/node_modules"
+      },
+      {
+        "from": "src/api/.next/static",
+        "to": "api-server/.next/static"
+      },
+      {
+        "from": "src/api/public",
+        "to": "api-server/public"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "asInvoker"
+    }
   },
   "packageManager": "npm@10.9.2",
   "engines": {

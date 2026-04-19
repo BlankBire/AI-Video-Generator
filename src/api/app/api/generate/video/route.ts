@@ -85,13 +85,14 @@ async function generateAudioTask(
   config: any,
   finalScriptId: string,
   audioDir: string,
-  audioFilePath: string
+  audioFilePath: string,
+  fptApiKeyInput?: string
 ) {
   if (!totalAudioScript.trim()) return '';
 
   const fptVoice = config?.voiceGender || 'leminh';
   console.log(`[FPT-AI] [TASK] Generating TTS with Voice ID: ${fptVoice}...`);
-  const fptApiKey = process.env.FPT_AI_API_KEY;
+  const fptApiKey = fptApiKeyInput || process.env.FPT_AI_API_KEY;
   const fptSpeed = Math.floor(((config?.voiceSpeed ?? 50) / 100) * 6) - 3;
   
   try {
@@ -152,7 +153,7 @@ async function generateVideoTask(
   duration: number,
   promptImage?: string
 ) {
-  const MODELS_PRIORITY = ['gen4.5', 'gen3a_turbo', 'veo3.1_fast', 'veo3.1', 'veo3'];
+  const MODELS_PRIORITY = ['gen3a_turbo'];
   let res: { id: string } | null = null;
   let lastErr: any = null;
   
@@ -202,9 +203,14 @@ export async function POST(req: Request) {
   try {
     const { scriptId: inputScriptId, manualScript, config } = await req.json();
 
-    const runwayApiKey = process.env.RUNWAYML_API_KEY;
-    const googleApiKey = process.env.GOOGLE_API_KEY;
+    const runwayApiKey = req.headers.get('x-runway-api-key');
+    const googleApiKey = req.headers.get('x-google-api-key');
+    const fptApiKey = req.headers.get('x-fpt-api-key');
     const hfApiKey = process.env.HUGGINGFACE_API_KEY;
+
+    if (!runwayApiKey || !googleApiKey || !fptApiKey) {
+      throw new Error('Vui lòng cấu hình đầy đủ API Key (Runway, Google, FPT) trong phần Cài đặt.');
+    }
     
     let script: any = null;
     let finalScriptId = inputScriptId;
@@ -220,25 +226,25 @@ export async function POST(req: Request) {
     let fullAudioScript = '';
     const defaultProjectId = '123e4567-e89b-12d3-a456-426614174000';
 
-    if (manualScript && manualScript.trim()) {
-       scenes = await refineManualScript(manualScript, googleApiKey || '');
-       const newScript = await prisma.videoScript.create({
-         data: {
-             project: { connect: { id: script?.projectId || defaultProjectId } },
-             content: { scenes } as any
-         }
-       });
-       script = newScript;
-       finalScriptId = newScript.id;
-    } else if (script) {
-       const content = script.content as any;
-       if (Array.isArray(content)) {
-         scenes = content;
-       } else if (content && typeof content === 'object') {
-         scenes = content.scenes || [];
-         fullAudioScript = content.fullAudioScript || '';
-       }
-    }
+     if (manualScript && manualScript.trim()) {
+        scenes = await refineManualScript(manualScript, googleApiKey || '');
+        const newScript = await prisma.videoScript.create({
+          data: {
+              project: { connect: { id: script?.projectId || defaultProjectId } },
+              content: JSON.stringify({ scenes })
+          }
+        });
+        script = newScript;
+        finalScriptId = newScript.id;
+     } else if (script) {
+        const content = typeof script.content === 'string' ? JSON.parse(script.content) : script.content;
+        if (Array.isArray(content)) {
+          scenes = content;
+        } else if (content && typeof content === 'object') {
+          scenes = content.scenes || [];
+          fullAudioScript = content.fullAudioScript || '';
+        }
+     }
 
     if (!scenes || scenes.length === 0) return NextResponse.json({ error: 'No script' }, { status: 400 });
 
@@ -265,7 +271,10 @@ export async function POST(req: Request) {
       ? fullAudioScript 
       : scenes.map((s: any) => s.audioScript).filter(Boolean).join('... ');
 
-    const configData = (script?.content as any)?.config || {};
+    const configData = (() => {
+      const content = typeof script?.content === 'string' ? JSON.parse(script.content) : script?.content;
+      return content?.config || {};
+    })();
     const characterId = configData.characterId || '';
     const characterType = configData.characterType || '';
     const mainCharacter = configData.mainCharacter || 'chef';
@@ -277,7 +286,8 @@ export async function POST(req: Request) {
 
     const projectTopic = script?.project?.storyTopic || script?.project?.title || 'Delicious Food';
     const targetDur = parseInt(String(config?.duration || '10').replace(/[^0-9]/g, '')) || 10;
-    const duration = targetDur;
+    // Runway Gen-3 Alpha Turbo chỉ hỗ trợ 5s hoặc 10s
+    const duration = targetDur <= 7 ? 5 : 10;
     
     const motionIntensity = Number(config?.motionIntensity ?? 50);
     let motionKeyword = "Subtle micro-movements, high fidelity, stable textures, locked geometry, anchor product position";
@@ -305,7 +315,7 @@ export async function POST(req: Request) {
       `NEGATIVE: NO hovering, NO melting, NO distortion, NO frozen smiles, NO repetitive idle motions.`
     ].filter(Boolean).join(' ').slice(0, 1000);
 
-    const ratio = config?.aspectRatio === '16:9' ? '1280:720' : '720:1280';
+    const ratio = config?.aspectRatio === '16:9' ? '1280:768' : '768:1280';
     const audioFileName = `fpt_${finalScriptId}.mp3`;
     const audioFilePath = path.join(audioDir, audioFileName);
     let audioUrl = '';
@@ -317,7 +327,7 @@ export async function POST(req: Request) {
     console.log('[PIPELINE] Starting Parallel Generation...');
     
     const [audioResultUrl, rawVideoUrl] = await Promise.all([
-      generateAudioTask(totalAudioScript, config, finalScriptId, audioDir, audioFilePath),
+      generateAudioTask(totalAudioScript, config, finalScriptId, audioDir, audioFilePath, fptApiKey || undefined),
       generateVideoTask(runway, visualPrompt, ratio, duration, productImage)
     ]);
 
@@ -365,7 +375,8 @@ export async function POST(req: Request) {
           visualPrompt, 
           audioScript: totalAudioScript, 
           videoClipUrl: finalVideoUrl, 
-          audioUrl 
+          audioUrl,
+          metadata: JSON.stringify({}) // Stringify for SQLite
         },
       });
       await prisma.videoGeneration.update({ where: { id: generationId }, data: { status: 'completed' } });

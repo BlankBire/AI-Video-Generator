@@ -1,58 +1,118 @@
-import { NextResponse } from 'next/server';
-import prisma from '../../../../lib/prisma';
-import { GoogleGenAI } from '@google/genai';
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from "next/server";
+// Debug import marker to surface module load-time errors in production logs
+console.log("[TRACE] Loaded route: /api/generate/content");
+import prisma from "../../../../lib/prisma";
+import { GoogleGenAI } from "@google/genai";
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+const DEBUG_LOG = path.join(os.tmpdir(), "foodiegen-debug.log");
+function appendDebug(...args: any[]) {
+  try {
+    const line =
+      `[${new Date().toISOString()}] ` +
+      args
+        .map((a) => {
+          try {
+            return typeof a === "string" ? a : JSON.stringify(a);
+          } catch (e) {
+            return String(a);
+          }
+        })
+        .join(" ") +
+      "\n";
+    fs.appendFileSync(DEBUG_LOG, line);
+  } catch (e) {
+    // ignore
+  }
+}
 
 export async function POST(req: Request) {
   try {
+    console.log(
+      "[TRACE] POST /api/generate/content invoked. Headers:",
+      Object.fromEntries(req.headers),
+    );
+    appendDebug("TRACE POST invoked", {
+      headers: Object.fromEntries(req.headers),
+    });
     const body = await req.json();
-    console.log('[V8-DEBUG] CONTENT REQUEST BODY:', { ...body, productImage: body.productImage ? 'BASE64_STUB' : 'null' });
-    
-    const { topic, tone, projectId, characterId, characterType, mainCharacter, locationContext, videoGenre, numScenes, productImage } = body;
-    
+    console.log("[V8-DEBUG] CONTENT REQUEST BODY:", {
+      ...body,
+      productImage: body.productImage ? "BASE64_STUB" : "null",
+    });
+
+    const {
+      topic,
+      tone,
+      projectId,
+      characterId,
+      characterType,
+      mainCharacter,
+      locationContext,
+      videoGenre,
+      numScenes,
+      productImage,
+    } = body;
+
     if (!topic || !projectId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     // 1. Initialize New GenAI SDK (Google AI Studio Mode)
-    const apiKey = process.env.GOOGLE_API_KEY;
+    const headerApiKey = req.headers.get("x-google-api-key");
+    const apiKey = headerApiKey;
+
     if (!apiKey) {
-        throw new Error('GOOGLE_API_KEY is not set in environment variables');
+      throw new Error(
+        "Vui lòng nhập Google Gemini API Key trong phần Cài đặt của bạn.",
+      );
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const modelId = 'gemini-3.1-flash-lite-preview'; 
+    const modelId = "gemini-3.1-flash-lite-preview";
 
     let promptParts: any[] = [];
-    
-    const sceneCountStr = String(numScenes || '2 cảnh');
-    const sceneCount = parseInt(sceneCountStr.replace(/[^0-9]/g, '')) || 2;
 
-    const durationRaw = String(body.duration || '10').replace(/[^0-9]/g, '');
+    const sceneCountStr = String(numScenes || "2 cảnh");
+    const sceneCount = parseInt(sceneCountStr.replace(/[^0-9]/g, "")) || 2;
+
+    const durationRaw = String(body.duration || "10").replace(/[^0-9]/g, "");
     const durationNum = parseInt(durationRaw) || 10;
     const voiceDuration = durationNum - 1; // Mục tiêu kết thúc trước 1s
-    const maxWords = Math.floor(voiceDuration * 2.5); 
+    const maxWords = Math.floor(voiceDuration * 2.5);
 
-    console.log(`[V8-DEBUG] Target Video: ${durationNum}s | Target Audio: ${voiceDuration}s | Max Words: ${maxWords}`);
+    console.log(
+      `[V8-DEBUG] Target Video: ${durationNum}s | Target Audio: ${voiceDuration}s | Max Words: ${maxWords}`,
+    );
 
     // --- SAVE PRODUCT IMAGE IF EXISTS ---
-    let savedProductImageUrl = '';
-    if (productImage && productImage.includes('base64,')) {
+    let savedProductImageUrl = "";
+    if (productImage && productImage.includes("base64,")) {
       try {
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'products');
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-        
-        const base64Data = productImage.split('base64,')[1];
-        const ext = productImage.split(';')[0].split('/')[1] || 'png';
+        const uploadDir = path.join(
+          os.tmpdir(),
+          "foodiegen",
+          "uploads",
+          "products",
+        );
+        if (!fs.existsSync(uploadDir))
+          fs.mkdirSync(uploadDir, { recursive: true });
+
+        const base64Data = productImage.split("base64,")[1];
+        const ext = productImage.split(";")[0].split("/")[1] || "png";
         const fileName = `prod_${Date.now()}.${ext}`;
         const filePath = path.join(uploadDir, fileName);
-        
-        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+
+        fs.writeFileSync(filePath, Buffer.from(base64Data, "base64"));
         savedProductImageUrl = `/uploads/products/${fileName}`;
-        console.log('[V8-DEBUG] Product image saved:', savedProductImageUrl);
+        console.log("[V8-DEBUG] Product image saved:", savedProductImageUrl);
       } catch (err) {
-        console.error('[V8-DEBUG] Failed to save product image:', err);
+        console.error("[V8-DEBUG] Failed to save product image:", err);
       }
     }
 
@@ -121,13 +181,16 @@ CHÚ Ý: Toàn bộ thuật ngữ tiếng Anh, tỷ lệ % trung thực (Adheren
   Do NOT end with fragments, colloquial ellipses, or imperative fragments lacking a subject.
   The invitation must reference the brand when available and be polite, complete, and marketing-appropriate.`;
 
-    if (productImage && productImage.includes('base64,')) {
-      const parts = productImage.split('base64,');
+    if (productImage && productImage.includes("base64,")) {
+      const parts = productImage.split("base64,");
       const base64Data = parts[1];
-      const mimeType = productImage.split(';')[0].split(':')[1];
-      
+      const mimeType = productImage.split(";")[0].split(":")[1];
+
       promptParts = [
-        { text: basePrompt + `\n\nLƯU Ý ĐẶC BIỆT (PHÂN TÍCH ẢNH THẬT): Người dùng đã tải lên hình ảnh sản phẩm mẫu. 
+        {
+          text:
+            basePrompt +
+            `\n\nLƯU Ý ĐẶC BIỆT (PHÂN TÍCH ẢNH THẬT): Người dùng đã tải lên hình ảnh sản phẩm mẫu. 
 1. Đầu tiên, hãy kiểm tra xem hình ảnh đó có phải là đồ ăn không. Nếu KHÔNG PHẢI đồ ăn, thêm "warning": "Ảnh không phải đồ ăn" vào JSON.
 2. Nếu LÀ ĐỒ ĂN: Hãy phân tích CỰC KỲ CHI TIẾT các yếu tố sau và đưa vào visualDescription của TẤT CẢ các cảnh:
    - Hình dạng hình học chính xác (Vd: bánh hình tròn hoản hảo, hình trụ, hình cầu...). Tuyệt đối giữ đúng hình dạng này (Vd: tròn thì không được tả thành oval). Càng giống ảnh mẫu càng tốt.
@@ -136,19 +199,22 @@ CHÚ Ý: Toàn bộ thuật ngữ tiếng Anh, tỷ lệ % trung thực (Adheren
    - Màu sắc: Tông màu chủ đạo chính xác của ảnh mẫu.
 3. QUY TẮC LỜI THOẠI (BRAND-HEAVY): Nếu phát hiện ra tên thương hiệu hoặc logo, bạn phải đưa tên thương hiệu đó vào "fullAudioScript" một cách tự nhiên nhưng nổi bật (Vd: "Thưởng thức vị ngon từ [Tên thương hiệu]...").
 4. Đảm bảo nhân vật chính trong kịch bản (${mainCharacter}) tương tác hoặc giới thiệu món ăn này sao cho bám sát các đặc điểm thật đã phân tích được.
-` },
+`,
+        },
         {
           inlineData: {
             data: base64Data,
-            mimeType: mimeType
-          }
-        }
+            mimeType: mimeType,
+          },
+        },
       ];
     } else {
       promptParts = [{ text: basePrompt }];
     }
 
-    console.log(`[V8-API-KEY] Calling Model: ${modelId} with Multimodal: ${!!productImage}`);
+    console.log(
+      `[V8-API-KEY] Calling Model: ${modelId} with Multimodal: ${!!productImage}`,
+    );
 
     // 2. Generate Content with basic retry for 503 High Demand
     let result: any;
@@ -157,123 +223,165 @@ CHÚ Ý: Toàn bộ thuật ngữ tiếng Anh, tỷ lệ % trung thực (Adheren
 
     while (attempts < maxAttempts) {
       try {
-          result = await ai.models.generateContent({
-            model: modelId,
-            contents: [{ role: 'user', parts: promptParts }],
-          });
-          break; // Success!
+        result = await ai.models.generateContent({
+          model: modelId,
+          contents: [{ role: "user", parts: promptParts }],
+        });
+        break; // Success!
       } catch (aiErr: any) {
-          attempts++;
-          // Nhận diện lỗi 503 hoặc quá tải
-          const errString = JSON.stringify(aiErr);
-          const isRetryable = errString.includes('503') || 
-                              errString.toLowerCase().includes('high demand') || 
-                              errString.includes('UNAVAILABLE');
-          
-          if (isRetryable && attempts < maxAttempts) {
-            console.warn(`[GEMINI-RETRY] 503/High Demand. Attempt ${attempts}/${maxAttempts}...`);
-            await new Promise(r => setTimeout(r, 4000)); // Đợi 4s
-            continue;
-          }
+        attempts++;
+        // Nhận diện lỗi 503 hoặc quá tải
+        const errString = JSON.stringify(aiErr);
+        const isRetryable =
+          errString.includes("503") ||
+          errString.toLowerCase().includes("high demand") ||
+          errString.includes("UNAVAILABLE");
 
-          console.error('[V8-DEBUG] AI GENERATION FAILED:', aiErr);
-          
-          // --- GRACEFUL FALLBACK ---
-          if (aiErr.message?.includes('Unable to process input image') || aiErr.message?.includes('400')) {
-            console.warn('[V8-DEBUG] AI rejected image. Falling back to text-only generation.');
-            try {
-              result = await ai.models.generateContent({
-                model: modelId,
-                contents: [{ role: 'user', parts: [{ text: basePrompt }] }],
-              });
-              result.__forced_warning = "AI Studio không thể xử lý ảnh này. Đã tạo kịch bản dựa trên văn bản.";
-              break;
-            } catch (retryErr: any) {
-              throw new Error(`AI Retry Error: ${retryErr.message}`);
-            }
-          } else {
-            throw new Error(`AI Studio Error: ${aiErr.message || 'Unknown AI error'}`);
+        if (isRetryable && attempts < maxAttempts) {
+          console.warn(
+            `[GEMINI-RETRY] 503/High Demand. Attempt ${attempts}/${maxAttempts}...`,
+          );
+          await new Promise((r) => setTimeout(r, 4000)); // Đợi 4s
+          continue;
+        }
+
+        console.error("[V8-DEBUG] AI GENERATION FAILED:", aiErr);
+
+        // --- GRACEFUL FALLBACK ---
+        if (
+          aiErr.message?.includes("Unable to process input image") ||
+          aiErr.message?.includes("400")
+        ) {
+          console.warn(
+            "[V8-DEBUG] AI rejected image. Falling back to text-only generation.",
+          );
+          try {
+            result = await ai.models.generateContent({
+              model: modelId,
+              contents: [{ role: "user", parts: [{ text: basePrompt }] }],
+            });
+            result.__forced_warning =
+              "AI Studio không thể xử lý ảnh này. Đã tạo kịch bản dựa trên văn bản.";
+            break;
+          } catch (retryErr: any) {
+            throw new Error(`AI Retry Error: ${retryErr.message}`);
           }
+        } else {
+          throw new Error(
+            `AI Studio Error: ${aiErr.message || "Unknown AI error"}`,
+          );
+        }
       }
     }
 
     const candidate = result.candidates?.[0];
     const part = candidate?.content?.parts?.[0];
-    const contentText = part?.text || '';
-    console.log('[V8-DEBUG] RAW GENAI RESPONSE:', contentText);
+    const contentText = part?.text || "";
+    console.log("[V8-DEBUG] RAW GENAI RESPONSE:", contentText);
 
     if (!contentText) {
-        throw new Error('AI trả về kết quả rỗng. Vui lòng thử lại.');
+      throw new Error("AI trả về kết quả rỗng. Vui lòng thử lại.");
     }
 
-    const jsonString = contentText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const jsonString = contentText
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
     let scenes = [];
     let warning = null;
-    
+
     try {
-        const parsed = JSON.parse(jsonString);
-        if (parsed.scenes && Array.isArray(parsed.scenes)) {
-          scenes = parsed.scenes;
-          // Carry over properties for immediate return
-          (scenes as any).fullAudioScript = parsed.fullAudioScript || '';
-          warning = parsed.warning;
-        } else {
-          scenes = Array.isArray(parsed) ? parsed : [parsed];
-        }
+      const parsed = JSON.parse(jsonString);
+      if (parsed.scenes && Array.isArray(parsed.scenes)) {
+        scenes = parsed.scenes;
+        // Carry over properties for immediate return
+        (scenes as any).fullAudioScript = parsed.fullAudioScript || "";
+        warning = parsed.warning;
+      } else {
+        scenes = Array.isArray(parsed) ? parsed : [parsed];
+      }
     } catch (parseError) {
-        console.log('[V8-DEBUG] JSON Parse failed, trying regex extraction...');
-        const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-            scenes = JSON.parse(arrayMatch[0]);
-        } else {
-            throw new Error('Không thể parse kịch bản từ Gemini: ' + contentText.substring(0, 50));
-        }
+      console.log("[V8-DEBUG] JSON Parse failed, trying regex extraction...");
+      const arrayMatch = jsonString.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        scenes = JSON.parse(arrayMatch[0]);
+      } else {
+        throw new Error(
+          "Không thể parse kịch bản từ Gemini: " + contentText.substring(0, 50),
+        );
+      }
     }
-    
+
     if (!Array.isArray(scenes) || scenes.length === 0) {
-        throw new Error('Kịch bản rỗng. Hãy thử lại với chủ đề khác.');
+      throw new Error("Kịch bản rỗng. Hãy thử lại với chủ đề khác.");
     }
 
     // 2. Ensure Project Exists
-    console.log('[V8-DEBUG] Verifying Project:', projectId);
-    const existingProject = await prisma.videoProject.findUnique({ where: { id: projectId } });
+    console.log("[V8-DEBUG] Verifying Project:", projectId);
+    const existingProject = await prisma.videoProject.findUnique({
+      where: { id: projectId },
+    });
     if (!existingProject) {
-      console.log('[V8-DEBUG] Creating dummy user/project for:', projectId);
+      console.log("[V8-DEBUG] Creating dummy user/project for:", projectId);
       await prisma.user.upsert({
         where: { id: projectId },
         update: {},
-        create: { id: projectId, email: `test_${projectId}@foodiegen.com`, fullName: 'Test Component', passwordHash: 'dummy' }
+        create: {
+          id: projectId,
+          email: `test_${projectId}@foodiegen.com`,
+          fullName: "Test Component",
+          passwordHash: "dummy",
+        },
       });
       await prisma.videoProject.create({
-        data: { id: projectId, userId: projectId, title: 'Auto-Generated Test Project', status: 'draft' }
+        data: {
+          id: projectId,
+          userId: projectId,
+          title: "Auto-Generated Test Project",
+          status: "draft",
+        },
       });
     }
 
     // 3. Save to Database
-    console.log('[V8-DEBUG] Saving script to DB...');
+    console.log("[V8-DEBUG] Saving script to DB...");
     const script = await prisma.videoScript.create({
       data: {
         projectId,
-        content: {
+        content: JSON.stringify({
           scenes,
-          fullAudioScript: (scenes as any).fullAudioScript || '',
-          config: { characterId, characterType, mainCharacter, locationContext, videoGenre, savedProductImageUrl }
-        },
+          fullAudioScript: (scenes as any).fullAudioScript || "",
+          config: {
+            characterId,
+            characterType,
+            mainCharacter,
+            locationContext,
+            videoGenre,
+            savedProductImageUrl,
+          },
+        }),
         version: 1,
         isActive: true,
       },
     });
 
-    console.log('[V8-DEBUG] SUCCESS. Script ID:', script.id);
-    return NextResponse.json({ 
+    console.log("[V8-DEBUG] SUCCESS. Script ID:", script.id);
+    return NextResponse.json({
       projectId,
-      scriptId: script.id, 
-      scenes, 
-      fullAudioScript: (scenes as any).fullAudioScript || '',
-      warning: warning || result.__forced_warning 
+      scriptId: script.id,
+      scenes,
+      fullAudioScript: (scenes as any).fullAudioScript || "",
+      warning: warning || result.__forced_warning,
     });
   } catch (error: any) {
-    console.error('[V8-CRITICAL] API Error:', error);
-    return NextResponse.json({ error: error.message || 'Lỗi hệ thống không xác định' }, { status: 500 });
+    console.error("[V8-CRITICAL] API Error:", error);
+    return NextResponse.json(
+      {
+        error: error.message || "Lỗi hệ thống không xác định",
+        details: error.stack,
+        code: error.code,
+      },
+      { status: 500 },
+    );
   }
 }

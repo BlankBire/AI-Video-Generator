@@ -42,3 +42,27 @@ build/
 
 # Service account
 foodiegen-service-account.json
+
+# Databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Binaries & Packaging
+bin/msvc/
+dist/
+resources/prisma/
+resources/api-server/
+*.exe
+*.dll
+
+# Logs
+*.log
+api-server.log
+
+# Build caching
+*.tsbuildinfo
+.turbo/
+.next/
+.cache/
