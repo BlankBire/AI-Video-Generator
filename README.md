@@ -2,6 +2,8 @@
 
 **FoodieGen** là ứng dụng desktop mạnh mẽ giúp tự động hóa quy trình sáng tạo video marketing chuyên nghiệp cho ngành ẩm thực. Với sự kết hợp của các công nghệ AI tiên tiến nhất, FoodieGen cho phép bạn biến một ý tưởng thô thành một video cinematic chất lượng cao chỉ trong vài phút.
 
+> **[Tải xuống ứng dụng tại đây.](https://github.com/BlankBire/FoodieGen/releases/download/v0.1.0/FoodieGenSetup.exe)**
+
 ---
 
 ## Tính năng nổi bật
