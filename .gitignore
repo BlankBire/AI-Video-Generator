@@ -66,3 +66,7 @@ api-server.log
 .turbo/
 .next/
 .cache/
+
+# Temporary scratch files
+tmp_*.js
+tmp/
